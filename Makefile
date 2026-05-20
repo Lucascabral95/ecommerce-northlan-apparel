@@ -1,10 +1,19 @@
-.PHONY: install dev build lint test clean
+.PHONY: install dev up down logs build lint test clean
 
 install:
 	npm install
 
 dev:
 	npm run dev
+
+up:
+	docker compose up -d
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs --tail=100
 
 test:
 	npm test
