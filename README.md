@@ -1,6 +1,6 @@
 # Northlane Apparel
 
-Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 2**: it defines the monorepo structure, tooling, service boundaries and local infrastructure without implementing business workflows yet.
+Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 3**: it defines the monorepo structure, local infrastructure and a hardened API Gateway base without implementing business workflows yet.
 
 ## Current Scope
 
@@ -10,7 +10,7 @@ Implemented now:
 - Turborepo as a script orchestrator only.
 - Strict TypeScript base configuration.
 - Minimal Next.js app in `apps/web`.
-- Minimal NestJS API Gateway in `apps/api-gateway`.
+- NestJS API Gateway base in `apps/api-gateway` with `/api/v1`, health check, typed environment configuration, CORS, Helmet, rate limiting, structured request logs, correlation IDs, validation pipe and consistent error responses.
 - Eight NestJS service shells under `services/*`.
 - Prisma schema placeholder per service.
 - Shared and contracts packages.
@@ -22,6 +22,7 @@ Not implemented yet:
 
 - RabbitMQ topology or messaging code.
 - Product catalog, cart, checkout, orders or payments.
+- Real authentication and authorization.
 - Complete frontend UI.
 - CI/CD or AWS deployment.
 
@@ -104,12 +105,29 @@ npm run clean
 
 | Component | Local URL / Port | Default credentials |
 |---|---|---|
+| API Gateway | `http://localhost:4000/api/v1/health` | none |
 | RabbitMQ AMQP | `localhost:5672` | `northlane / northlane` |
 | RabbitMQ Management UI | `http://localhost:15672` | `northlane / northlane` |
 | PostgreSQL | `localhost:5432` | `northlane / northlane` |
 | Redis | `localhost:6379` | none |
 
 Use `make logs` to follow container logs and `make down` to stop the stack. Persistent data is stored in named Docker volumes.
+
+## API Gateway
+
+The public HTTP boundary is available under `/api/v1`.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/health` | Health check for local and future container probes. |
+| `GET /api/v1/auth` | Placeholder module boundary. |
+| `GET /api/v1/products` | Placeholder module boundary. |
+| `GET /api/v1/cart` | Placeholder module boundary. |
+| `GET /api/v1/checkout` | Placeholder module boundary. |
+| `GET /api/v1/orders` | Placeholder module boundary. |
+| `GET /api/v1/admin` | Placeholder module boundary. |
+
+Every HTTP response includes or propagates `x-correlation-id`. Request logs are emitted as JSON and include the same correlation ID. Unhandled and HTTP errors use a consistent envelope with `success`, `statusCode`, `error`, `correlationId`, `path`, `method` and `timestamp`.
 
 ## Service Boundary Intent
 
@@ -128,4 +146,4 @@ Use `make logs` to follow container logs and `make down` to stop the stack. Pers
 
 Each service has its own `prisma/schema.prisma` file with an isolated datasource placeholder. Domain models and migrations are intentionally deferred until the corresponding service is implemented.
 
-RabbitMQ is available locally as infrastructure, but exchanges, queues, retry policy, DLQs and application messaging code are intentionally deferred to a later phase.
+RabbitMQ is available locally as infrastructure, but exchanges, queues, retry policy, DLQs and application messaging code are intentionally deferred to a later phase. API Gateway placeholder modules do not call RabbitMQ or internal services yet.
