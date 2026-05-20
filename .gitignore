@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+.next/
+.env
+.env.*
+!.env.example
+npm-debug.log*
+docker-compose.override.local.yml
+tmp/
+logs/
