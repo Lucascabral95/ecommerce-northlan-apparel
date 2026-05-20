@@ -7,7 +7,8 @@ module.exports = tseslint.config(
       "**/dist/**",
       "**/coverage/**",
       "**/node_modules/**",
-      ".turbo/**"
+      "**/.next/**",
+      "**/.turbo/**"
     ]
   },
   js.configs.recommended,
