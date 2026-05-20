@@ -1,8 +1,0 @@
-services:
-  api-gateway:
-    environment:
-      LOG_LEVEL: debug
-
-  base-service:
-    environment:
-      LOG_LEVEL: debug

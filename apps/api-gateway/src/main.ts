@@ -1,5 +1,4 @@
 import { NestFactory } from '@nestjs/core';
-import helmet from 'helmet';
 import { JsonLogger, loadServiceConfig } from '@northlane/shared';
 import { AppModule } from './app.module';
 
@@ -17,7 +16,6 @@ async function bootstrap(): Promise<void> {
     origin: process.env.API_CORS_ORIGIN ?? 'http://localhost:3000',
     credentials: true,
   });
-  app.use(helmet());
 
   await app.listen(config.port);
 }

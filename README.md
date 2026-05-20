@@ -1,120 +1,115 @@
 # Northlane Apparel
 
-Northlane Apparel is an event-driven apparel e-commerce platform built as a professional monorepo. This repository is currently in **Phase 1**, focused on the foundation: npm workspaces, local infrastructure, a basic NestJS API Gateway, one base microservice, RabbitMQ topology bootstrap, observability endpoints and root automation commands.
+Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is intentionally in **Phase 1**: it defines the monorepo structure, tooling, service boundaries and initial documentation without implementing business workflows yet.
 
-The project intentionally does **not** include catalog, cart, orders or payments yet. Those domains will be added in later phases on top of this foundation.
+## Phase 1 Scope
 
-## Current Architecture
+Implemented now:
+
+- npm workspaces.
+- Turborepo as a script orchestrator only.
+- Strict TypeScript base configuration.
+- Minimal Next.js app in `apps/web`.
+- Minimal NestJS API Gateway in `apps/api-gateway`.
+- Eight NestJS service shells under `services/*`.
+- Prisma schema placeholder per service.
+- Shared and contracts packages.
+- Initial Docker and Terraform directories without runtime infrastructure.
+- Root Makefile with minimal commands.
+
+Not implemented yet:
+
+- RabbitMQ topology or messaging code.
+- PostgreSQL, Redis or Docker Compose runtime infrastructure.
+- Product catalog, cart, checkout, orders or payments.
+- Complete frontend UI.
+- CI/CD or AWS deployment.
+
+## Target Architecture
 
 ```mermaid
 flowchart LR
-  Client[Future Next.js Web] --> Gateway[API Gateway NestJS]
-  Gateway --> RabbitMQ[(RabbitMQ)]
-  BaseService[Base Service NestJS] --> RabbitMQ
-  Gateway --> Metrics[Prometheus Scrape]
-  BaseService --> Metrics
-  Metrics --> Grafana[Grafana]
-  Gateway -. future .-> Postgres[(PostgreSQL)]
-  BaseService -. future .-> Postgres
-  Gateway -. future .-> Redis[(Redis)]
+  Web[Next.js Web] --> Gateway[NestJS API Gateway]
+  Gateway --> Broker[(RabbitMQ - later phase)]
+  Broker --> Auth[Auth Service]
+  Broker --> User[User Service]
+  Broker --> Catalog[Catalog Service]
+  Broker --> Inventory[Inventory Service]
+  Broker --> Cart[Cart Service]
+  Broker --> Order[Order Service]
+  Broker --> Payment[Payment Service]
+  Broker --> Notification[Notification Service]
+  Auth --> AuthDb[(Auth DB)]
+  User --> UserDb[(User DB)]
+  Catalog --> CatalogDb[(Catalog DB)]
+  Inventory --> InventoryDb[(Inventory DB)]
+  Cart --> CartDb[(Cart DB)]
+  Order --> OrderDb[(Order DB)]
+  Payment --> PaymentDb[(Payment DB)]
+  Notification --> NotificationDb[(Notification DB)]
 ```
 
-## Implemented in Phase 1
+## Repository Layout
 
-- npm workspaces monorepo.
-- Turborepo task orchestration.
-- TypeScript strict base configuration.
-- ESLint and Prettier configuration.
-- Docker Compose with PostgreSQL, RabbitMQ Management, Redis, Prometheus and Grafana.
-- Basic NestJS API Gateway.
-- Basic NestJS microservice named `base-service`.
-- Shared package for service config, JSON logger, correlation ID middleware, Prometheus registry and RabbitMQ topology helpers.
-- Root Makefile with local development commands.
-- `.env.example` for local configuration.
-
-## Local URLs
-
-| Component | URL |
-|---|---|
-| API Gateway health | `http://localhost:4000/health` |
-| API Gateway status | `http://localhost:4000/api/v1/status` |
-| API Gateway metrics | `http://localhost:4000/metrics` |
-| Base Service health | `http://localhost:3001/health` |
-| Base Service status | `http://localhost:3001/status` |
-| Base Service metrics | `http://localhost:3001/metrics` |
-| RabbitMQ Management | `http://localhost:15672` |
-| Prometheus | `http://localhost:9090` |
-| Grafana | `http://localhost:3002` |
-
-Default local RabbitMQ credentials are `northlane / northlane`. Default Grafana credentials are `admin / admin`.
-
-## Requirements
-
-- Node.js 22 or newer.
-- npm 10 or newer.
-- Docker and Docker Compose.
-- `make` for root Makefile commands.
+```text
+apps/
+  web/
+  api-gateway/
+services/
+  auth-service/
+  user-service/
+  catalog-service/
+  inventory-service/
+  cart-service/
+  order-service/
+  payment-service/
+  notification-service/
+packages/
+  shared/
+  contracts/
+infra/
+  docker/
+  terraform/
+docs/
+```
 
 ## Commands
 
 ```bash
 make install
-make up
 make dev
-make logs
-make down
+make build
 make lint
 make test
-make build
-make docker-build
 make clean
 ```
 
-## Development Flow
+Equivalent npm commands:
 
-1. Create a local `.env` using `.env.example` as the source of truth.
-2. Run `make install`.
-3. Run `make up` to start PostgreSQL, RabbitMQ, Redis, Prometheus, Grafana and the two Node services.
-4. Run `make dev` when developing the NestJS services locally outside Docker.
-
-## Workspace Layout
-
-```text
-apps/
-  api-gateway/
-services/
-  base-service/
-packages/
-  shared/
-infra/
-  docker/
-  prometheus/
-  grafana/
-scripts/
-  migrations/
-  seed/
+```bash
+npm install
+npm run dev
+npm run build
+npm run lint
+npm test
+npm run clean
 ```
 
-## Design Notes
+## Service Boundary Intent
 
-- The API Gateway is intentionally thin. It exposes HTTP and will later translate public API requests into RabbitMQ commands and request/reply messages.
-- The base service proves the microservice template: NestJS bootstrap, health endpoint, metrics endpoint, correlation ID middleware and RabbitMQ topology assertion.
-- RabbitMQ uses separate direct command exchanges and topic event exchanges. This avoids the invalid pattern of trying to use one exchange as both direct and topic.
-- PostgreSQL is available in Phase 1, but service-owned Prisma schemas and migrations start when real domain services are introduced.
-- Redis is available for later rate limiting, cache and temporary state use cases.
+- `apps/web`: future customer and admin frontend.
+- `apps/api-gateway`: future public HTTP boundary for the frontend.
+- `auth-service`: credentials, tokens and roles.
+- `user-service`: profiles, addresses and contact data.
+- `catalog-service`: products, categories, variants and merchandising data.
+- `inventory-service`: stock ownership and reservations.
+- `cart-service`: user carts and cart item snapshots.
+- `order-service`: checkout saga state and order history.
+- `payment-service`: payment processing abstraction.
+- `notification-service`: email and notification history.
 
-## Phase 1 Scope Boundary
+## Development Notes
 
-Not implemented yet:
+Each service has its own `prisma/schema.prisma` file with an isolated datasource placeholder. Domain models and migrations are intentionally deferred until the corresponding service is implemented.
 
-- Next.js frontend.
-- Catalog domain.
-- Cart domain.
-- Checkout saga.
-- Order domain.
-- Payment domain.
-- User/auth flows.
-- Terraform cloud infrastructure.
-- GitHub Actions CI/CD.
-
-These will be added incrementally after the foundation is stable.
+RabbitMQ, Docker Compose, PostgreSQL and Redis will be introduced in later phases after the monorepo foundation is stable.

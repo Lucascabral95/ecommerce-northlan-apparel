@@ -8,5 +8,6 @@ coverage/
 !.env.example
 npm-debug.log*
 docker-compose.override.local.yml
+next-env.d.ts
 tmp/
 logs/
