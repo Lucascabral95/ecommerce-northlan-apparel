@@ -1,23 +1,38 @@
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { JsonLogger, loadServiceConfig } from '@northlane/shared';
+import { JsonLogger } from '@northlane/shared';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { ApiGatewayConfigService, loadApiGatewayConfig } from './config/api-gateway-config.service';
 
-const config = loadServiceConfig('api-gateway', 4000);
+const bootstrapConfig = loadApiGatewayConfig();
+const logger = new JsonLogger(bootstrapConfig.serviceName);
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
-    logger: new JsonLogger(config.serviceName),
+    logger,
   });
 
-  app.setGlobalPrefix('api/v1', {
-    exclude: ['/health', '/metrics'],
-  });
+  const config = app.get(ApiGatewayConfigService);
+
+  app.use(helmet());
+  app.setGlobalPrefix('api/v1');
   app.enableCors({
-    origin: process.env.API_CORS_ORIGIN ?? 'http://localhost:3000',
+    origin: config.corsOrigins,
     credentials: true,
   });
+  app.useGlobalPipes(
+    new ValidationPipe({
+      forbidNonWhitelisted: true,
+      transform: true,
+      whitelist: true,
+    }),
+  );
+  app.useGlobalFilters(app.get(HttpExceptionFilter));
 
   await app.listen(config.port);
+  logger.log(`API Gateway listening on port ${config.port}`, 'Bootstrap');
 }
 
 void bootstrap();
