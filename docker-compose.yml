@@ -1,0 +1,65 @@
+name: northlane-apparel
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: northlane-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-northlane}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-northlane}
+    ports:
+      - "${RABBITMQ_AMQP_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - northlane
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: northlane-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-northlane}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-northlane}
+      POSTGRES_DB: ${POSTGRES_DB:-northlane_platform}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-northlane} -d ${POSTGRES_DB:-northlane_platform}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - northlane
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: northlane-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - northlane
+
+volumes:
+  rabbitmq_data:
+  postgres_data:
+  redis_data:
+
+networks:
+  northlane:
+    driver: bridge
