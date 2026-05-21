@@ -8,7 +8,8 @@ module.exports = tseslint.config(
       "**/coverage/**",
       "**/node_modules/**",
       "**/.next/**",
-      "**/.turbo/**"
+      "**/.turbo/**",
+      "**/src/generated/prisma/**"
     ]
   },
   js.configs.recommended,

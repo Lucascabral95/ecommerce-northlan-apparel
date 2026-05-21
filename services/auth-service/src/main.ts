@@ -1,10 +1,11 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
-import { JsonLogger, loadServiceConfig } from '@northlane/shared';
+import { JsonLogger } from '@northlane/shared';
 import { AppModule } from './app.module';
-
-const config = loadServiceConfig('auth-service', 4101);
+import { loadAuthServiceConfig } from './config/auth-service.config';
 
 async function bootstrap(): Promise<void> {
+  const config = loadAuthServiceConfig();
   const app = await NestFactory.create(AppModule, {
     logger: new JsonLogger(config.serviceName),
   });

@@ -44,8 +44,16 @@ export type LoginUserCommandPayload = Readonly<{
 
 export type LoginUserCommand = BaseCommand<LoginUserCommandPayload, typeof ROUTING_KEYS.authCommandLogin>;
 
+export type RefreshTokenCommandPayload = Readonly<{
+  refreshToken: string;
+}>;
+
+export type RefreshTokenCommand = BaseCommand<RefreshTokenCommandPayload, typeof ROUTING_KEYS.authCommandRefresh>;
+
 export type UserRegisteredEventPayload = Readonly<{
   email: string;
+  firstName?: string;
+  lastName?: string;
   role: 'ADMIN' | 'USER';
   userId: string;
 }>;
@@ -132,13 +140,126 @@ export type RequestPaymentCommand = BaseCommand<
   typeof ROUTING_KEYS.paymentCommandRequestPayment
 >;
 
+export type AuthTokensDto = Readonly<{
+  accessToken: string;
+  expiresInSeconds: number;
+  refreshToken: string;
+  tokenType: 'Bearer';
+}>;
+
+export type AuthenticatedUserDto = Readonly<{
+  email: string;
+  role: 'ADMIN' | 'USER';
+  userId: string;
+}>;
+
+export type AuthResponseDto = Readonly<{
+  tokens: AuthTokensDto;
+  user: AuthenticatedUserDto;
+}>;
+
+export type UserProfileDto = Readonly<{
+  birthDate?: string;
+  createdAt: string;
+  documentNumber?: string;
+  documentType?: string;
+  email: string;
+  firstName?: string;
+  gender?: string;
+  id: string;
+  lastName?: string;
+  phone?: string;
+  preferredCategories: readonly string[];
+  preferredSizes: readonly string[];
+  updatedAt: string;
+  userId: string;
+}>;
+
+export type AddressDto = Readonly<{
+  alias: string;
+  apartment?: string;
+  city: string;
+  country: string;
+  createdAt: string;
+  id: string;
+  isDefault: boolean;
+  phone: string;
+  postalCode: string;
+  province: string;
+  recipientName: string;
+  references?: string;
+  street: string;
+  streetNumber: string;
+  updatedAt: string;
+  userId: string;
+}>;
+
+export type GetProfileCommandPayload = Readonly<{
+  userId: string;
+}>;
+
+export type GetProfileCommand = BaseCommand<GetProfileCommandPayload, typeof ROUTING_KEYS.userCommandGetProfile>;
+
+export type UpdateProfileCommandPayload = Readonly<{
+  birthDate?: string;
+  documentNumber?: string;
+  documentType?: string;
+  firstName?: string;
+  gender?: string;
+  lastName?: string;
+  phone?: string;
+  preferredCategories?: readonly string[];
+  preferredSizes?: readonly string[];
+  userId: string;
+}>;
+
+export type UpdateProfileCommand = BaseCommand<
+  UpdateProfileCommandPayload,
+  typeof ROUTING_KEYS.userCommandUpdateProfile
+>;
+
+export type ListAddressesCommandPayload = Readonly<{
+  userId: string;
+}>;
+
+export type ListAddressesCommand = BaseCommand<
+  ListAddressesCommandPayload,
+  typeof ROUTING_KEYS.userCommandListAddresses
+>;
+
+export type CreateAddressCommandPayload = Readonly<{
+  alias: string;
+  apartment?: string;
+  city: string;
+  country: string;
+  isDefault?: boolean;
+  phone: string;
+  postalCode: string;
+  province: string;
+  recipientName: string;
+  references?: string;
+  street: string;
+  streetNumber: string;
+  userId: string;
+}>;
+
+export type CreateAddressCommand = BaseCommand<
+  CreateAddressCommandPayload,
+  typeof ROUTING_KEYS.userCommandCreateAddress
+>;
+
 export type InitialCommand =
   | AddCartItemCommand
   | CreateOrderCommand
   | GetProductCommand
+  | GetProfileCommand
   | LoginUserCommand
+  | ListAddressesCommand
+  | RefreshTokenCommand
   | RegisterUserCommand
+  | CreateAddressCommand
   | RequestPaymentCommand
-  | ReserveStockCommand;
+  | ReserveStockCommand
+  | UpdateProfileCommand;
 
 export type InitialEvent = ProductCreatedEvent | UserRegisteredEvent;
