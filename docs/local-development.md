@@ -1,6 +1,6 @@
 # Local Development
 
-This document covers local infrastructure, the API Gateway foundation and the Phase 5 auth/user flow. Catalog, cart, checkout and payment workflows are still intentionally out of scope.
+This document covers local infrastructure, the API Gateway foundation, the Phase 5 auth/user flow and the Phase 6 catalog flow. Cart, checkout, inventory reservation and payment workflows are still intentionally out of scope.
 
 ## Requirements
 
@@ -34,6 +34,8 @@ Default infrastructure values:
 | `JWT_ACCESS_EXPIRES_IN_SECONDS` | `900` |
 | `JWT_REFRESH_TOKEN_EXPIRES_IN_DAYS` | `30` |
 | `BCRYPT_SALT_ROUNDS` | `12` |
+| `CATALOG_SERVICE_PORT` | `4103` |
+| `CATALOG_DATABASE_URL` | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=catalog_service` |
 
 ## Commands
 
@@ -55,7 +57,8 @@ make down
 | Service | URL |
 |---|---|
 | API Gateway health | `http://localhost:4000/api/v1/health` |
-| API Gateway placeholders | `http://localhost:4000/api/v1/products` |
+| Product catalog | `http://localhost:4000/api/v1/products` |
+| Catalog Service health | `http://localhost:4103/health` |
 | RabbitMQ Management UI | `http://localhost:15672` |
 | PostgreSQL | `localhost:5432` |
 | Redis | `localhost:6379` |
@@ -64,14 +67,16 @@ RabbitMQ credentials default to `northlane / northlane`.
 
 ## Database Migrations
 
-Auth and User services own separate PostgreSQL schemas through Prisma.
+Auth, User and Catalog services own separate PostgreSQL schemas through Prisma.
 
 ```bash
 npm run prisma:migrate --workspace @northlane/auth-service
 npm run prisma:migrate --workspace @northlane/user-service
+npm run prisma:migrate --workspace @northlane/catalog-service
+npm run seed --workspace @northlane/catalog-service
 ```
 
-The required URLs are `AUTH_DATABASE_URL` and `USER_DATABASE_URL`.
+The required URLs are `AUTH_DATABASE_URL`, `USER_DATABASE_URL` and `CATALOG_DATABASE_URL`.
 
 ## Phase 5 Flow
 
@@ -81,9 +86,18 @@ The required URLs are `AUTH_DATABASE_URL` and `USER_DATABASE_URL`.
 4. `POST /api/v1/auth/login` returns a JWT access token.
 5. `GET /api/v1/me`, `PATCH /api/v1/me/profile` and address endpoints use RabbitMQ request/reply to `user-service`.
 
+## Phase 6 Catalog Flow
+
+1. `GET /api/v1/products` sends `catalog.command.list_products` through RabbitMQ.
+2. `catalog-service` queries its own `catalog_service` schema and returns products with variants, images and available stock derived from `stock - reservedStock`.
+3. `GET /api/v1/products/:slug` sends `catalog.command.get_product`.
+4. `GET /api/v1/categories` sends `catalog.command.get_categories`.
+5. Admin product create/update endpoints send `catalog.command.create_product` and `catalog.command.update_product`; they require an ADMIN JWT issued with the shared local `JWT_ACCESS_SECRET`.
+
 ## Scope Notes
 
 - Full dead-letter queues and retry policies are not implemented yet.
 - Redis is available for later caching/rate-limit/session use cases, but no application code uses it yet.
+- Catalog stock fields are initial merchandising data only. Stock reservation and overselling protection remain owned by the future Inventory Service.
 - API Gateway rate limiting uses in-memory throttling for now; Redis-backed distributed throttling is intentionally deferred.
 - Prometheus is intentionally deferred until services expose production metrics.

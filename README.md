@@ -1,6 +1,6 @@
 # Northlane Apparel
 
-Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 5**: it defines the monorepo structure, local infrastructure, API Gateway base, shared contracts and the first RabbitMQ-backed auth/user flow.
+Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 6**: it includes the monorepo foundation, local infrastructure, API Gateway, shared contracts, RabbitMQ-backed auth/user flow and the first professional catalog service.
 
 ## Current Scope
 
@@ -13,8 +13,9 @@ Implemented now:
 - NestJS API Gateway base in `apps/api-gateway` with `/api/v1`, health check, typed environment configuration, CORS, Helmet, rate limiting, structured request logs, correlation IDs, validation pipe and consistent error responses.
 - Auth Service with Prisma-owned credentials tables, bcrypt password hashing, JWT access tokens, refresh tokens and RabbitMQ request/reply handlers.
 - User Service with Prisma-owned profiles and addresses, plus `UserRegisteredEvent` consumption to create the initial profile.
+- Catalog Service with Prisma-owned products, variants, images, categories, brands, collections, slugs, SEO fields, filters, search and realistic apparel seed data.
 - Eight NestJS service shells under `services/*`.
-- Prisma schema placeholder per service.
+- Prisma schema and migrations for implemented services; placeholders remain for future services.
 - Shared and contracts packages.
 - Local Docker Compose infrastructure for RabbitMQ, PostgreSQL and Redis.
 - Initial Terraform directory without cloud infrastructure.
@@ -23,7 +24,7 @@ Implemented now:
 Not implemented yet:
 
 - Complete RabbitMQ topology, retries and DLQs.
-- Product catalog, cart, checkout, orders or payments.
+- Cart, checkout, orders, inventory reservation or payments.
 - Complete frontend UI.
 - CI/CD or AWS deployment.
 
@@ -128,11 +129,15 @@ The public HTTP boundary is available under `/api/v1`.
 | `PATCH /api/v1/me/profile` | Update personal profile data. |
 | `GET /api/v1/me/addresses` | List authenticated user's addresses. |
 | `POST /api/v1/me/addresses` | Create an address for the authenticated user. |
-| `GET /api/v1/products` | Placeholder module boundary. |
+| `GET /api/v1/products` | List active products with search, filters and sorting. |
+| `GET /api/v1/products/:slug` | Get active product detail by slug. |
+| `GET /api/v1/categories` | List active catalog categories. |
+| `GET /api/v1/admin/products` | List all products, including inactive products. Requires ADMIN JWT. |
+| `POST /api/v1/admin/products` | Create a product through Catalog Service. Requires ADMIN JWT. |
+| `PATCH /api/v1/admin/products/:id` | Update product merchandising fields. Requires ADMIN JWT. |
 | `GET /api/v1/cart` | Placeholder module boundary. |
 | `GET /api/v1/checkout` | Placeholder module boundary. |
 | `GET /api/v1/orders` | Placeholder module boundary. |
-| `GET /api/v1/admin` | Placeholder module boundary. |
 
 Every HTTP response includes or propagates `x-correlation-id`. Request logs are emitted as JSON and include the same correlation ID. Unhandled and HTTP errors use a consistent envelope with `success`, `statusCode`, `error`, `correlationId`, `path`, `method` and `timestamp`.
 
@@ -151,6 +156,15 @@ Every HTTP response includes or propagates `x-correlation-id`. Request logs are 
 
 ## Development Notes
 
-Each service has its own `prisma/schema.prisma` file with an isolated datasource placeholder. Domain models and migrations are intentionally deferred until the corresponding service is implemented.
+Each service has its own `prisma/schema.prisma` file and isolated PostgreSQL schema. Domain models and migrations are added only when a service reaches its implementation phase.
 
-RabbitMQ is available locally as infrastructure and is used by the Phase 5 auth/user flow. Full retry policy, DLQs and production-grade topology management are intentionally deferred to a later phase.
+Implemented service migrations can be applied independently:
+
+```bash
+npm run prisma:migrate --workspace @northlane/auth-service
+npm run prisma:migrate --workspace @northlane/user-service
+npm run prisma:migrate --workspace @northlane/catalog-service
+npm run seed --workspace @northlane/catalog-service
+```
+
+RabbitMQ is available locally as infrastructure and is used by the auth/user/catalog request-reply flow plus `UserRegisteredEvent`. Full retry policy, DLQs and production-grade topology management are intentionally deferred to a later phase.

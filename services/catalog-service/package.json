@@ -4,10 +4,13 @@
   "private": true,
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run prisma:generate && tsc -p tsconfig.json && node ../../scripts/copy-directory.mjs src/generated/prisma dist/generated/prisma",
     "clean": "node ../../scripts/clean.mjs",
-    "dev": "tsx watch src/main.ts",
+    "dev": "npm run prisma:generate && tsx watch src/main.ts",
     "lint": "eslint .",
+    "prisma:generate": "node ../../scripts/prisma-generate.mjs prisma/schema.prisma CATALOG_DATABASE_URL postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=catalog_service",
+    "prisma:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
+    "seed": "npm run prisma:generate && tsx src/seed/seed.ts",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
@@ -17,6 +20,8 @@
     "@northlane/contracts": "0.1.0",
     "@northlane/shared": "0.1.0",
     "@prisma/client": "^6.19.0",
+    "dotenv": "^16.6.1",
+    "dotenv": "^16.6.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },

@@ -75,6 +75,227 @@ export type GetProductCommandPayload =
 
 export type GetProductCommand = BaseCommand<GetProductCommandPayload, typeof ROUTING_KEYS.catalogCommandGetProduct>;
 
+export type ProductGenderTarget = 'KIDS' | 'MEN' | 'UNISEX' | 'WOMEN';
+
+export type ProductType =
+  | 'ACCESSORY'
+  | 'DRESS'
+  | 'HOODIE'
+  | 'JACKET'
+  | 'JEANS'
+  | 'OTHER'
+  | 'PANTS'
+  | 'SHIRT'
+  | 'SHOES'
+  | 'SWEATER'
+  | 'T_SHIRT';
+
+export type ProductFit = 'OVERSIZED' | 'REGULAR' | 'RELAXED' | 'SLIM';
+
+export type ProductSeason = 'ALL_SEASON' | 'MID_SEASON' | 'SUMMER' | 'WINTER';
+
+export type ProductSortBy = 'newest' | 'price_asc' | 'price_desc' | 'relevance';
+
+export type ProductVariantDto = Readonly<{
+  availableStock: number;
+  barcode?: string;
+  colorHex: string;
+  colorName: string;
+  id: string;
+  isActive: boolean;
+  priceOverride?: number;
+  reservedStock: number;
+  size: string;
+  sku: string;
+  stock: number;
+  weightInGrams: number;
+}>;
+
+export type ProductImageDto = Readonly<{
+  altText: string;
+  id: string;
+  isPrimary: boolean;
+  position: number;
+  url: string;
+  variantId?: string;
+}>;
+
+export type ProductDto = Readonly<{
+  averageRating: number;
+  brand: string;
+  canonicalUrl?: string;
+  careInstructions: string;
+  categoryId: string;
+  categoryName: string;
+  collection?: string;
+  compareAtPrice?: number;
+  composition: string;
+  costPrice?: number;
+  createdAt: string;
+  currency: string;
+  description: string;
+  discountPercentage: number;
+  externalUrl?: string;
+  fit: ProductFit;
+  genderTarget: ProductGenderTarget;
+  id: string;
+  images: readonly ProductImageDto[];
+  isActive: boolean;
+  isBestSeller: boolean;
+  isFeatured: boolean;
+  isNewArrival: boolean;
+  material: string;
+  price: number;
+  productType: ProductType;
+  seoDescription?: string;
+  seoTitle?: string;
+  shortDescription: string;
+  skuBase: string;
+  season: ProductSeason;
+  slug: string;
+  subcategoryId?: string;
+  subcategoryName?: string;
+  tags: readonly string[];
+  taxRate: number;
+  title: string;
+  totalReviews: number;
+  updatedAt: string;
+  variants: readonly ProductVariantDto[];
+}>;
+
+export type CategoryDto = Readonly<{
+  createdAt: string;
+  description?: string;
+  id: string;
+  imageUrl?: string;
+  isActive: boolean;
+  name: string;
+  parentId?: string;
+  slug: string;
+  updatedAt: string;
+}>;
+
+export type ProductListFiltersDto = Readonly<{
+  brands: readonly string[];
+  categories: readonly CategoryDto[];
+  colors: readonly string[];
+  sizes: readonly string[];
+}>;
+
+export type ProductListResponseDto = Readonly<{
+  filters: ProductListFiltersDto;
+  items: readonly ProductDto[];
+  total: number;
+}>;
+
+export type ListProductsCommandPayload = Readonly<{
+  brand?: string;
+  categorySlug?: string;
+  color?: string;
+  genderTarget?: ProductGenderTarget;
+  includeInactive?: boolean;
+  isFeatured?: boolean;
+  maxPrice?: number;
+  minPrice?: number;
+  page?: number;
+  pageSize?: number;
+  productType?: ProductType;
+  search?: string;
+  size?: string;
+  sortBy?: ProductSortBy;
+}>;
+
+export type ListProductsCommand = BaseCommand<
+  ListProductsCommandPayload,
+  typeof ROUTING_KEYS.catalogCommandListProducts
+>;
+
+export type GetCategoriesCommandPayload = Readonly<{
+  includeInactive?: boolean;
+}>;
+
+export type GetCategoriesCommand = BaseCommand<
+  GetCategoriesCommandPayload,
+  typeof ROUTING_KEYS.catalogCommandGetCategories
+>;
+
+export type ProductVariantInput = Readonly<{
+  barcode?: string;
+  colorHex: string;
+  colorName: string;
+  isActive?: boolean;
+  priceOverride?: number;
+  reservedStock?: number;
+  size: string;
+  sku: string;
+  stock: number;
+  weightInGrams: number;
+}>;
+
+export type ProductImageInput = Readonly<{
+  altText: string;
+  isPrimary?: boolean;
+  position: number;
+  url: string;
+  variantSku?: string;
+}>;
+
+export type CreateProductCommandPayload = Readonly<{
+  brand: string;
+  canonicalUrl?: string;
+  careInstructions: string;
+  categoryId?: string;
+  categoryName: string;
+  collection?: string;
+  compareAtPrice?: number;
+  composition: string;
+  costPrice?: number;
+  currency: string;
+  description: string;
+  discountPercentage?: number;
+  externalUrl?: string;
+  fit: ProductFit;
+  genderTarget: ProductGenderTarget;
+  images?: readonly ProductImageInput[];
+  isActive?: boolean;
+  isBestSeller?: boolean;
+  isFeatured?: boolean;
+  isNewArrival?: boolean;
+  material: string;
+  price: number;
+  productType: ProductType;
+  seoDescription?: string;
+  seoTitle?: string;
+  shortDescription: string;
+  skuBase: string;
+  season: ProductSeason;
+  slug?: string;
+  subcategoryId?: string;
+  subcategoryName?: string;
+  tags?: readonly string[];
+  taxRate?: number;
+  title: string;
+  variants?: readonly ProductVariantInput[];
+}>;
+
+export type CreateProductCommand = BaseCommand<
+  CreateProductCommandPayload,
+  typeof ROUTING_KEYS.catalogCommandCreateProduct
+>;
+
+export type UpdateProductCommandPayload = Readonly<
+  Partial<Omit<CreateProductCommandPayload, 'categoryName' | 'skuBase'>> & {
+    categoryName?: string;
+    id: string;
+    skuBase?: string;
+  }
+>;
+
+export type UpdateProductCommand = BaseCommand<
+  UpdateProductCommandPayload,
+  typeof ROUTING_KEYS.catalogCommandUpdateProduct
+>;
+
 export type ProductCreatedEventPayload = Readonly<{
   productId: string;
   skuBase: string;
@@ -85,6 +306,13 @@ export type ProductCreatedEventPayload = Readonly<{
 export type ProductCreatedEvent = BaseEvent<
   ProductCreatedEventPayload,
   typeof ROUTING_KEYS.catalogEventProductCreated
+>;
+
+export type ProductUpdatedEventPayload = ProductCreatedEventPayload;
+
+export type ProductUpdatedEvent = BaseEvent<
+  ProductUpdatedEventPayload,
+  typeof ROUTING_KEYS.catalogEventProductUpdated
 >;
 
 export type AddCartItemCommandPayload = Readonly<{
@@ -250,9 +478,12 @@ export type CreateAddressCommand = BaseCommand<
 
 export type InitialCommand =
   | AddCartItemCommand
+  | CreateProductCommand
   | CreateOrderCommand
+  | GetCategoriesCommand
   | GetProductCommand
   | GetProfileCommand
+  | ListProductsCommand
   | LoginUserCommand
   | ListAddressesCommand
   | RefreshTokenCommand
@@ -260,6 +491,7 @@ export type InitialCommand =
   | CreateAddressCommand
   | RequestPaymentCommand
   | ReserveStockCommand
+  | UpdateProductCommand
   | UpdateProfileCommand;
 
-export type InitialEvent = ProductCreatedEvent | UserRegisteredEvent;
+export type InitialEvent = ProductCreatedEvent | ProductUpdatedEvent | UserRegisteredEvent;
