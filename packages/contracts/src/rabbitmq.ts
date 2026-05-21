@@ -53,6 +53,8 @@ export const ROUTING_KEYS = {
   orderEventOrderCreated: 'order.event.order_created',
   orderEventOrderStatusChanged: 'order.event.order_status_changed',
   paymentCommandRequestPayment: 'payment.command.request_payment',
+  paymentEventPaymentFailed: 'payment.event.payment_failed',
+  paymentEventPaymentSucceeded: 'payment.event.payment_succeeded',
   userCommandCreateAddress: 'user.command.create_address',
   userCommandGetProfile: 'user.command.get_profile',
   userCommandListAddresses: 'user.command.list_addresses',

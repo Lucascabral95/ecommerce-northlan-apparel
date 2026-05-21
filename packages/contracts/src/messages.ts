@@ -740,6 +740,7 @@ export type RequestPaymentCommandPayload = Readonly<{
   amount: number;
   currency: string;
   idempotencyKey: string;
+  metadata?: Record<string, unknown>;
   orderId: string;
   provider: 'MERCADO_PAGO' | 'MOCK' | 'STRIPE';
   userId: string;
@@ -748,6 +749,58 @@ export type RequestPaymentCommandPayload = Readonly<{
 export type RequestPaymentCommand = BaseCommand<
   RequestPaymentCommandPayload,
   typeof ROUTING_KEYS.paymentCommandRequestPayment
+>;
+
+export type PaymentStatus = 'APPROVED' | 'CANCELLED' | 'PENDING' | 'REFUNDED' | 'REJECTED';
+
+export type PaymentProvider = 'MERCADO_PAGO' | 'MOCK' | 'STRIPE';
+
+export type PaymentDto = Readonly<{
+  amount: number;
+  createdAt: string;
+  currency: string;
+  failureReason?: string;
+  id: string;
+  idempotencyKey: string;
+  metadata?: unknown;
+  orderId: string;
+  provider: PaymentProvider;
+  providerPaymentId?: string;
+  status: PaymentStatus;
+  updatedAt: string;
+  userId: string;
+}>;
+
+export type PaymentSucceededEventPayload = Readonly<{
+  amount: number;
+  currency: string;
+  idempotencyKey: string;
+  orderId: string;
+  paymentId: string;
+  provider: PaymentProvider;
+  providerPaymentId: string;
+  userId: string;
+}>;
+
+export type PaymentSucceededEvent = BaseEvent<
+  PaymentSucceededEventPayload,
+  typeof ROUTING_KEYS.paymentEventPaymentSucceeded
+>;
+
+export type PaymentFailedEventPayload = Readonly<{
+  amount: number;
+  currency: string;
+  failureReason: string;
+  idempotencyKey: string;
+  orderId: string;
+  paymentId: string;
+  provider: PaymentProvider;
+  userId: string;
+}>;
+
+export type PaymentFailedEvent = BaseEvent<
+  PaymentFailedEventPayload,
+  typeof ROUTING_KEYS.paymentEventPaymentFailed
 >;
 
 export type AuthTokensDto = Readonly<{
@@ -893,6 +946,8 @@ export type InitialEvent =
   | OrderCancelledEvent
   | OrderCreatedEvent
   | OrderStatusChangedEvent
+  | PaymentFailedEvent
+  | PaymentSucceededEvent
   | ProductCreatedEvent
   | ProductUpdatedEvent
   | StockAdjustedEvent
