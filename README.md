@@ -1,6 +1,6 @@
 # Northlane Apparel
 
-Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 8**: it includes the monorepo foundation, local infrastructure, API Gateway, shared contracts, RabbitMQ-backed auth/user/catalog/inventory flows and a persistent cart service.
+Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 9**: it includes the monorepo foundation, local infrastructure, API Gateway, shared contracts, RabbitMQ-backed auth/user/catalog/inventory/cart flows and an idempotent order service ready for the checkout saga.
 
 ## Current Scope
 
@@ -16,6 +16,7 @@ Implemented now:
 - Catalog Service with Prisma-owned products, variants, images, categories, brands, collections, slugs, SEO fields, filters, search and realistic apparel seed data.
 - Inventory Service with Prisma-owned inventory items, stock reservations, stock movements, row-level locking, reservation expiration, idempotency and stock events.
 - Cart Service with Prisma-owned carts and cart items, product snapshots and catalog validation through RabbitMQ request/reply.
+- Order Service with Prisma-owned orders, order items, status history, checkout idempotency and snapshot-based order history.
 - Eight NestJS service shells under `services/*`.
 - Prisma schema and migrations for implemented services; placeholders remain for future services.
 - Shared and contracts packages.
@@ -26,7 +27,7 @@ Implemented now:
 Not implemented yet:
 
 - Complete RabbitMQ topology, retries and DLQs.
-- Checkout, orders or payments.
+- Complete payment processing, cart finalization and notification side effects.
 - Complete frontend UI.
 - CI/CD or AWS deployment.
 
@@ -35,7 +36,7 @@ Not implemented yet:
 ```mermaid
 flowchart LR
   Web[Next.js Web] --> Gateway[NestJS API Gateway]
-  Gateway --> Broker[(RabbitMQ - later phase)]
+  Gateway --> Broker[(RabbitMQ)]
   Broker --> Auth[Auth Service]
   Broker --> User[User Service]
   Broker --> Catalog[Catalog Service]
@@ -107,13 +108,13 @@ npm run clean
 
 `make up` starts the local infrastructure required by later event-driven phases.
 
-| Component | Local URL / Port | Default credentials |
-|---|---|---|
-| API Gateway | `http://localhost:4000/api/v1/health` | none |
-| RabbitMQ AMQP | `localhost:5672` | `northlane / northlane` |
-| RabbitMQ Management UI | `http://localhost:15672` | `northlane / northlane` |
-| PostgreSQL | `localhost:5432` | `northlane / northlane` |
-| Redis | `localhost:6379` | none |
+| Component              | Local URL / Port                      | Default credentials     |
+| ---------------------- | ------------------------------------- | ----------------------- |
+| API Gateway            | `http://localhost:4000/api/v1/health` | none                    |
+| RabbitMQ AMQP          | `localhost:5672`                      | `northlane / northlane` |
+| RabbitMQ Management UI | `http://localhost:15672`              | `northlane / northlane` |
+| PostgreSQL             | `localhost:5432`                      | `northlane / northlane` |
+| Redis                  | `localhost:6379`                      | none                    |
 
 Use `make logs` to follow container logs and `make down` to stop the stack. Persistent data is stored in named Docker volumes.
 
@@ -121,30 +122,33 @@ Use `make logs` to follow container logs and `make down` to stop the stack. Pers
 
 The public HTTP boundary is available under `/api/v1`.
 
-| Endpoint | Purpose |
-|---|---|
-| `GET /api/v1/health` | Health check for local and future container probes. |
-| `POST /api/v1/auth/register` | Register a user through Auth Service request/reply. |
-| `POST /api/v1/auth/login` | Login and issue access/refresh tokens. |
-| `POST /api/v1/auth/refresh` | Rotate refresh token and issue a new access token. |
-| `GET /api/v1/me` | Get the authenticated user's profile. |
-| `PATCH /api/v1/me/profile` | Update personal profile data. |
-| `GET /api/v1/me/addresses` | List authenticated user's addresses. |
-| `POST /api/v1/me/addresses` | Create an address for the authenticated user. |
-| `GET /api/v1/products` | List active products with search, filters and sorting. |
-| `GET /api/v1/products/:slug` | Get active product detail by slug. |
-| `GET /api/v1/categories` | List active catalog categories. |
-| `GET /api/v1/admin/products` | List all products, including inactive products. Requires ADMIN JWT. |
-| `POST /api/v1/admin/products` | Create a product through Catalog Service. Requires ADMIN JWT. |
-| `PATCH /api/v1/admin/products/:id` | Update product merchandising fields. Requires ADMIN JWT. |
-| `PATCH /api/v1/admin/products/:id/stock` | Adjust stock for a product variant through Inventory Service. Requires ADMIN JWT. |
-| `GET /api/v1/cart` | Get the authenticated user's active cart. |
-| `POST /api/v1/cart/items` | Add an item to the authenticated user's cart. |
-| `PATCH /api/v1/cart/items/:itemId` | Update cart item quantity. |
-| `DELETE /api/v1/cart/items/:itemId` | Remove a cart item. |
-| `DELETE /api/v1/cart` | Clear the active cart. |
-| `GET /api/v1/checkout` | Placeholder module boundary. |
-| `GET /api/v1/orders` | Placeholder module boundary. |
+| Endpoint                                 | Purpose                                                                                                                                      |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/health`                     | Health check for local and future container probes.                                                                                          |
+| `POST /api/v1/auth/register`             | Register a user through Auth Service request/reply.                                                                                          |
+| `POST /api/v1/auth/login`                | Login and issue access/refresh tokens.                                                                                                       |
+| `POST /api/v1/auth/refresh`              | Rotate refresh token and issue a new access token.                                                                                           |
+| `GET /api/v1/me`                         | Get the authenticated user's profile.                                                                                                        |
+| `PATCH /api/v1/me/profile`               | Update personal profile data.                                                                                                                |
+| `GET /api/v1/me/addresses`               | List authenticated user's addresses.                                                                                                         |
+| `POST /api/v1/me/addresses`              | Create an address for the authenticated user.                                                                                                |
+| `GET /api/v1/products`                   | List active products with search, filters and sorting.                                                                                       |
+| `GET /api/v1/products/:slug`             | Get active product detail by slug.                                                                                                           |
+| `GET /api/v1/categories`                 | List active catalog categories.                                                                                                              |
+| `GET /api/v1/admin/products`             | List all products, including inactive products. Requires ADMIN JWT.                                                                          |
+| `POST /api/v1/admin/products`            | Create a product through Catalog Service. Requires ADMIN JWT.                                                                                |
+| `PATCH /api/v1/admin/products/:id`       | Update product merchandising fields. Requires ADMIN JWT.                                                                                     |
+| `PATCH /api/v1/admin/products/:id/stock` | Adjust stock for a product variant through Inventory Service. Requires ADMIN JWT.                                                            |
+| `GET /api/v1/cart`                       | Get the authenticated user's active cart.                                                                                                    |
+| `POST /api/v1/cart/items`                | Add an item to the authenticated user's cart.                                                                                                |
+| `PATCH /api/v1/cart/items/:itemId`       | Update cart item quantity.                                                                                                                   |
+| `DELETE /api/v1/cart/items/:itemId`      | Remove a cart item.                                                                                                                          |
+| `DELETE /api/v1/cart`                    | Clear the active cart.                                                                                                                       |
+| `POST /api/v1/checkout`                  | Create an idempotent base order from the authenticated user's active cart. Requires `Idempotency-Key` header or `idempotencyKey` body field. |
+| `GET /api/v1/orders`                     | List the authenticated user's order history.                                                                                                 |
+| `GET /api/v1/orders/:id`                 | Get an authenticated user's order detail with item snapshots and status history.                                                             |
+| `GET /api/v1/admin/orders`               | List all orders. Requires ADMIN JWT.                                                                                                         |
+| `PATCH /api/v1/admin/orders/:id/status`  | Change an order status and append status history. Requires ADMIN JWT.                                                                        |
 
 Every HTTP response includes or propagates `x-correlation-id`. Request logs are emitted as JSON and include the same correlation ID. Unhandled and HTTP errors use a consistent envelope with `success`, `statusCode`, `error`, `correlationId`, `path`, `method` and `timestamp`.
 
@@ -173,7 +177,8 @@ npm run prisma:migrate --workspace @northlane/user-service
 npm run prisma:migrate --workspace @northlane/catalog-service
 npm run prisma:migrate --workspace @northlane/inventory-service
 npm run prisma:migrate --workspace @northlane/cart-service
+npm run prisma:migrate --workspace @northlane/order-service
 npm run seed --workspace @northlane/catalog-service
 ```
 
-RabbitMQ is available locally as infrastructure and is used by the auth/user/catalog/inventory/cart request-reply flow plus implemented domain events. Full retry policy, DLQs and production-grade topology management are intentionally deferred to a later phase.
+RabbitMQ is available locally as infrastructure and is used by the auth/user/catalog/inventory/cart/order request-reply flow plus implemented domain events. The order service publishes stock reservation commands and can react to stock reservation events, but payment confirmation and cart finalization remain intentionally deferred.

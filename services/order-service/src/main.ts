@@ -1,14 +1,17 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
-import { JsonLogger, loadServiceConfig } from '@northlane/shared';
+import { JsonLogger } from '@northlane/shared';
 import { AppModule } from './app.module';
+import { OrderServiceConfigService, loadOrderServiceConfig } from './config/order-service.config';
 
-const config = loadServiceConfig('order-service', 4106);
+const bootstrapConfig = loadOrderServiceConfig();
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
-    logger: new JsonLogger(config.serviceName),
+    logger: new JsonLogger(bootstrapConfig.serviceName),
   });
 
+  const config = app.get(OrderServiceConfigService);
   await app.listen(config.port);
 }
 
