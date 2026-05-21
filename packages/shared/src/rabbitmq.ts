@@ -34,6 +34,11 @@ type RpcError = Readonly<{
 }>;
 
 export type SubscribeOptions = Readonly<{
+  deadLetter?: Readonly<{
+    exchange: string;
+    queue: string;
+    routingKey: string;
+  }>;
   exchange: string;
   queue: string;
   routingKeys: readonly string[];
@@ -71,13 +76,18 @@ export class RabbitMqClient implements OnModuleDestroy {
     const channel = await this.getChannel();
     await this.assertExchange(options.exchange);
 
-    channel.publish(options.exchange, options.routingKey, Buffer.from(JSON.stringify(options.message)), {
-      contentType: 'application/json',
-      correlationId: options.correlationId,
-      deliveryMode: 2,
-      messageId: randomUUID(),
-      timestamp: Date.now(),
-    });
+    channel.publish(
+      options.exchange,
+      options.routingKey,
+      Buffer.from(JSON.stringify(options.message)),
+      {
+        contentType: 'application/json',
+        correlationId: options.correlationId,
+        deliveryMode: 2,
+        messageId: randomUUID(),
+        timestamp: Date.now(),
+      },
+    );
   }
 
   async request<TResponse = unknown>(options: RequestOptions): Promise<TResponse> {
@@ -120,14 +130,19 @@ export class RabbitMqClient implements OnModuleDestroy {
         { noAck: true },
       );
 
-      channel.publish(options.exchange, options.routingKey, Buffer.from(JSON.stringify(options.message)), {
-        contentType: 'application/json',
-        correlationId,
-        deliveryMode: 2,
-        messageId: randomUUID(),
-        replyTo: replyQueue.queue,
-        timestamp: Date.now(),
-      });
+      channel.publish(
+        options.exchange,
+        options.routingKey,
+        Buffer.from(JSON.stringify(options.message)),
+        {
+          contentType: 'application/json',
+          correlationId,
+          deliveryMode: 2,
+          messageId: randomUUID(),
+          replyTo: replyQueue.queue,
+          timestamp: Date.now(),
+        },
+      );
     });
   }
 
@@ -137,7 +152,25 @@ export class RabbitMqClient implements OnModuleDestroy {
   ): Promise<void> {
     const channel = await this.getChannel();
     await this.assertExchange(options.exchange);
+    if (options.deadLetter) {
+      await this.assertExchange(options.deadLetter.exchange);
+      const deadLetterQueue = await channel.assertQueue(options.deadLetter.queue, {
+        durable: true,
+      });
+      await channel.bindQueue(
+        deadLetterQueue.queue,
+        options.deadLetter.exchange,
+        options.deadLetter.routingKey,
+      );
+    }
+
     const queue = await channel.assertQueue(options.queue, {
+      arguments: options.deadLetter
+        ? {
+            'x-dead-letter-exchange': options.deadLetter.exchange,
+            'x-dead-letter-routing-key': options.deadLetter.routingKey,
+          }
+        : undefined,
       durable: true,
     });
 

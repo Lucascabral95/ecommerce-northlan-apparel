@@ -1,6 +1,6 @@
 # Northlane Apparel
 
-Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 10**: it includes the monorepo foundation, local infrastructure, API Gateway, shared contracts, RabbitMQ-backed auth/user/catalog/inventory/cart/order flows and a MOCK payment service for the MVP checkout saga.
+Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 11**: it includes the monorepo foundation, local infrastructure, API Gateway, shared contracts, RabbitMQ-backed auth/user/catalog/inventory/cart/order/payment flows and a notification service with simulated email delivery.
 
 ## Current Scope
 
@@ -18,6 +18,7 @@ Implemented now:
 - Cart Service with Prisma-owned carts and cart items, product snapshots and catalog validation through RabbitMQ request/reply.
 - Order Service with Prisma-owned orders, order items, status history, checkout idempotency and snapshot-based order history.
 - Payment Service with Prisma-owned payments, payment events, MOCK approval/rejection rules and command idempotency.
+- Notification Service with Prisma-owned notification history, simulated email logs and a RabbitMQ DLQ for failed notification events.
 - Eight NestJS service shells under `services/*`.
 - Prisma schema and migrations for implemented services; placeholders remain for future services.
 - Shared and contracts packages.
@@ -28,7 +29,7 @@ Implemented now:
 Not implemented yet:
 
 - Complete RabbitMQ topology, retries and DLQs.
-- Order reaction to payment success/failure, cart finalization and notification side effects.
+- Order reaction to payment success/failure and cart finalization.
 - Complete frontend UI.
 - CI/CD or AWS deployment.
 
@@ -180,7 +181,8 @@ npm run prisma:migrate --workspace @northlane/inventory-service
 npm run prisma:migrate --workspace @northlane/cart-service
 npm run prisma:migrate --workspace @northlane/order-service
 npm run prisma:migrate --workspace @northlane/payment-service
+npm run prisma:migrate --workspace @northlane/notification-service
 npm run seed --workspace @northlane/catalog-service
 ```
 
-RabbitMQ is available locally as infrastructure and is used by the auth/user/catalog/inventory/cart/order/payment request-reply flow plus implemented domain events. The order service publishes stock reservation commands and can react to stock reservation events. Payment Service consumes `payment.command.request_payment` and emits `payment.event.payment_succeeded` or `payment.event.payment_failed`; Order Service reaction to those payment events is intentionally deferred to the next phase.
+RabbitMQ is available locally as infrastructure and is used by the auth/user/catalog/inventory/cart/order/payment/notification request-reply flow plus implemented domain events. Notification Service consumes user, order and payment events, persists notification history and simulates email delivery with JSON logs. Failed notification event handling is routed to `notification.events.dlq`.

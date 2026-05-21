@@ -1,6 +1,6 @@
 # Local Development
 
-This document covers local infrastructure, the API Gateway foundation, the Phase 5 auth/user flow, the Phase 6 catalog flow, the Phase 7 inventory flow, the Phase 8 cart flow, the Phase 9 order flow and the Phase 10 MOCK payment flow. Order reaction to payment events, cart finalization and notifications are still intentionally out of scope.
+This document covers local infrastructure, the API Gateway foundation, the Phase 5 auth/user flow, the Phase 6 catalog flow, the Phase 7 inventory flow, the Phase 8 cart flow, the Phase 9 order flow, the Phase 10 MOCK payment flow and the Phase 11 notification flow. Order reaction to payment events and cart finalization are still intentionally out of scope.
 
 ## Requirements
 
@@ -15,39 +15,41 @@ Copy `.env.example` to `.env` if you need to customize ports or credentials.
 
 Default infrastructure values:
 
-| Variable                            | Default                                                                                       |
-| ----------------------------------- | --------------------------------------------------------------------------------------------- |
-| `POSTGRES_USER`                     | `northlane`                                                                                   |
-| `POSTGRES_PASSWORD`                 | `northlane`                                                                                   |
-| `POSTGRES_DB`                       | `northlane_platform`                                                                          |
-| `POSTGRES_PORT`                     | `5432`                                                                                        |
-| `RABBITMQ_DEFAULT_USER`             | `northlane`                                                                                   |
-| `RABBITMQ_DEFAULT_PASS`             | `northlane`                                                                                   |
-| `RABBITMQ_AMQP_PORT`                | `5672`                                                                                        |
-| `RABBITMQ_MANAGEMENT_PORT`          | `15672`                                                                                       |
-| `REDIS_PORT`                        | `6379`                                                                                        |
-| `API_GATEWAY_PORT`                  | `4000`                                                                                        |
-| `API_CORS_ORIGIN`                   | `http://localhost:3000`                                                                       |
-| `API_RATE_LIMIT_TTL_MS`             | `60000`                                                                                       |
-| `API_RATE_LIMIT_LIMIT`              | `100`                                                                                         |
-| `JWT_ACCESS_SECRET`                 | `replace-with-a-strong-local-secret`                                                          |
-| `JWT_ACCESS_EXPIRES_IN_SECONDS`     | `900`                                                                                         |
-| `JWT_REFRESH_TOKEN_EXPIRES_IN_DAYS` | `30`                                                                                          |
-| `BCRYPT_SALT_ROUNDS`                | `12`                                                                                          |
-| `CATALOG_SERVICE_PORT`              | `4103`                                                                                        |
-| `CATALOG_DATABASE_URL`              | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=catalog_service`   |
-| `INVENTORY_SERVICE_PORT`            | `4104`                                                                                        |
-| `INVENTORY_RESERVATION_TTL_SECONDS` | `900`                                                                                         |
-| `INVENTORY_DATABASE_URL`            | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=inventory_service` |
-| `CART_SERVICE_PORT`                 | `4105`                                                                                        |
-| `CART_DATABASE_URL`                 | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=cart_service`      |
-| `ORDER_SERVICE_PORT`                | `4106`                                                                                        |
-| `ORDER_DATABASE_URL`                | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=order_service`     |
-| `PAYMENT_SERVICE_PORT`              | `4107`                                                                                        |
-| `PAYMENT_PROVIDER_MODE`             | `MOCK`                                                                                        |
-| `PAYMENT_MOCK_FAILURE_AMOUNT`       | `13.37`                                                                                       |
-| `PAYMENT_MOCK_FORCE_FAILURE`        | `false`                                                                                       |
-| `PAYMENT_DATABASE_URL`              | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=payment_service`   |
+| Variable                            | Default                                                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `POSTGRES_USER`                     | `northlane`                                                                                      |
+| `POSTGRES_PASSWORD`                 | `northlane`                                                                                      |
+| `POSTGRES_DB`                       | `northlane_platform`                                                                             |
+| `POSTGRES_PORT`                     | `5432`                                                                                           |
+| `RABBITMQ_DEFAULT_USER`             | `northlane`                                                                                      |
+| `RABBITMQ_DEFAULT_PASS`             | `northlane`                                                                                      |
+| `RABBITMQ_AMQP_PORT`                | `5672`                                                                                           |
+| `RABBITMQ_MANAGEMENT_PORT`          | `15672`                                                                                          |
+| `REDIS_PORT`                        | `6379`                                                                                           |
+| `API_GATEWAY_PORT`                  | `4000`                                                                                           |
+| `API_CORS_ORIGIN`                   | `http://localhost:3000`                                                                          |
+| `API_RATE_LIMIT_TTL_MS`             | `60000`                                                                                          |
+| `API_RATE_LIMIT_LIMIT`              | `100`                                                                                            |
+| `JWT_ACCESS_SECRET`                 | `replace-with-a-strong-local-secret`                                                             |
+| `JWT_ACCESS_EXPIRES_IN_SECONDS`     | `900`                                                                                            |
+| `JWT_REFRESH_TOKEN_EXPIRES_IN_DAYS` | `30`                                                                                             |
+| `BCRYPT_SALT_ROUNDS`                | `12`                                                                                             |
+| `CATALOG_SERVICE_PORT`              | `4103`                                                                                           |
+| `CATALOG_DATABASE_URL`              | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=catalog_service`      |
+| `INVENTORY_SERVICE_PORT`            | `4104`                                                                                           |
+| `INVENTORY_RESERVATION_TTL_SECONDS` | `900`                                                                                            |
+| `INVENTORY_DATABASE_URL`            | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=inventory_service`    |
+| `CART_SERVICE_PORT`                 | `4105`                                                                                           |
+| `CART_DATABASE_URL`                 | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=cart_service`         |
+| `ORDER_SERVICE_PORT`                | `4106`                                                                                           |
+| `ORDER_DATABASE_URL`                | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=order_service`        |
+| `PAYMENT_SERVICE_PORT`              | `4107`                                                                                           |
+| `PAYMENT_PROVIDER_MODE`             | `MOCK`                                                                                           |
+| `PAYMENT_MOCK_FAILURE_AMOUNT`       | `13.37`                                                                                          |
+| `PAYMENT_MOCK_FORCE_FAILURE`        | `false`                                                                                          |
+| `PAYMENT_DATABASE_URL`              | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=payment_service`      |
+| `NOTIFICATION_SERVICE_PORT`         | `4108`                                                                                           |
+| `NOTIFICATION_DATABASE_URL`         | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=notification_service` |
 
 ## Commands
 
@@ -66,24 +68,25 @@ make down
 
 ## Local URLs
 
-| Service                  | URL                                     |
-| ------------------------ | --------------------------------------- |
-| API Gateway health       | `http://localhost:4000/api/v1/health`   |
-| Product catalog          | `http://localhost:4000/api/v1/products` |
-| Catalog Service health   | `http://localhost:4103/health`          |
-| Inventory Service health | `http://localhost:4104/health`          |
-| Cart Service health      | `http://localhost:4105/health`          |
-| Order Service health     | `http://localhost:4106/health`          |
-| Payment Service health   | `http://localhost:4107/health`          |
-| RabbitMQ Management UI   | `http://localhost:15672`                |
-| PostgreSQL               | `localhost:5432`                        |
-| Redis                    | `localhost:6379`                        |
+| Service                     | URL                                     |
+| --------------------------- | --------------------------------------- |
+| API Gateway health          | `http://localhost:4000/api/v1/health`   |
+| Product catalog             | `http://localhost:4000/api/v1/products` |
+| Catalog Service health      | `http://localhost:4103/health`          |
+| Inventory Service health    | `http://localhost:4104/health`          |
+| Cart Service health         | `http://localhost:4105/health`          |
+| Order Service health        | `http://localhost:4106/health`          |
+| Payment Service health      | `http://localhost:4107/health`          |
+| Notification Service health | `http://localhost:4108/health`          |
+| RabbitMQ Management UI      | `http://localhost:15672`                |
+| PostgreSQL                  | `localhost:5432`                        |
+| Redis                       | `localhost:6379`                        |
 
 RabbitMQ credentials default to `northlane / northlane`.
 
 ## Database Migrations
 
-Auth, User, Catalog, Inventory, Cart, Order and Payment services own separate PostgreSQL schemas through Prisma.
+Auth, User, Catalog, Inventory, Cart, Order, Payment and Notification services own separate PostgreSQL schemas through Prisma.
 
 ```bash
 npm run prisma:migrate --workspace @northlane/auth-service
@@ -93,10 +96,11 @@ npm run prisma:migrate --workspace @northlane/inventory-service
 npm run prisma:migrate --workspace @northlane/cart-service
 npm run prisma:migrate --workspace @northlane/order-service
 npm run prisma:migrate --workspace @northlane/payment-service
+npm run prisma:migrate --workspace @northlane/notification-service
 npm run seed --workspace @northlane/catalog-service
 ```
 
-The required URLs are `AUTH_DATABASE_URL`, `USER_DATABASE_URL`, `CATALOG_DATABASE_URL`, `INVENTORY_DATABASE_URL`, `CART_DATABASE_URL`, `ORDER_DATABASE_URL` and `PAYMENT_DATABASE_URL`.
+The required URLs are `AUTH_DATABASE_URL`, `USER_DATABASE_URL`, `CATALOG_DATABASE_URL`, `INVENTORY_DATABASE_URL`, `CART_DATABASE_URL`, `ORDER_DATABASE_URL`, `PAYMENT_DATABASE_URL` and `NOTIFICATION_DATABASE_URL`.
 
 ## Phase 5 Flow
 
@@ -151,11 +155,20 @@ The required URLs are `AUTH_DATABASE_URL`, `USER_DATABASE_URL`, `CATALOG_DATABAS
 6. A normal MOCK payment is saved as `APPROVED` and publishes `payment.event.payment_succeeded`.
 7. A MOCK payment is saved as `REJECTED` and publishes `payment.event.payment_failed` when `metadata.simulateFailure`, `metadata.forceFailure`, `metadata.mockOutcome: "REJECTED"` or the configured `PAYMENT_MOCK_FAILURE_AMOUNT` is used.
 
+## Phase 11 Notification Flow
+
+1. `notification-service` consumes `auth.event.user_registered`, `order.event.order_created`, `payment.event.payment_succeeded`, `payment.event.payment_failed`, `order.event.order_confirmed` and `order.event.order_cancelled`.
+2. Every consumed event creates a row in the `notification_service.notifications` table.
+3. Email delivery is simulated only: no real provider is called and no real email leaves the system.
+4. Simulated delivery writes a structured JSON log with `notificationId`, `userId`, `type`, `subject` and correlation metadata.
+5. Notification consumers declare `notification.events.queue` with a dead-letter exchange and route failed messages to `notification.events.dlq`.
+
 ## Scope Notes
 
 - Full dead-letter queues and retry policies are not implemented yet.
 - Redis is available for later caching/rate-limit/session use cases, but no application code uses it yet.
 - Catalog variant stock fields are historical merchandising data from Phase 6; authoritative reservations and stock movements now belong to Inventory Service.
 - Cart does not reserve stock. Order creation now starts stock reservation, and Payment Service can process the MOCK payment command. Order status updates after payment success/failure remain deferred.
+- Notification Service does not send real email; integration with SES or another provider remains deferred.
 - API Gateway rate limiting uses in-memory throttling for now; Redis-backed distributed throttling is intentionally deferred.
 - Prometheus is intentionally deferred until services expose production metrics.

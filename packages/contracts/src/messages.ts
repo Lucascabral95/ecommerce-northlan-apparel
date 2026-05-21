@@ -549,6 +549,11 @@ export type OrderCancelledEvent = BaseEvent<
   typeof ROUTING_KEYS.orderEventOrderCancelled
 >;
 
+export type OrderConfirmedEvent = BaseEvent<
+  OrderStatusChangedEventPayload,
+  typeof ROUTING_KEYS.orderEventOrderConfirmed
+>;
+
 export type ReserveStockItemPayload = Readonly<{
   quantity: number;
   sku: string;
@@ -944,6 +949,7 @@ export type InitialCommand =
 
 export type InitialEvent =
   | OrderCancelledEvent
+  | OrderConfirmedEvent
   | OrderCreatedEvent
   | OrderStatusChangedEvent
   | PaymentFailedEvent
