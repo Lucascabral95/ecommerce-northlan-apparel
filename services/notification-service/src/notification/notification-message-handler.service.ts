@@ -21,6 +21,9 @@ type OrderNotificationEvent =
 type PaymentNotificationEvent = PaymentFailedEvent | PaymentSucceededEvent;
 type AuthNotificationEvent = UserRegisteredEvent;
 
+const RETRY_DELAY_MS = 5_000;
+const MAX_RETRY_ATTEMPTS = 3;
+
 @Injectable()
 export class NotificationMessageHandlerService implements OnModuleInit {
   constructor(
@@ -40,6 +43,10 @@ export class NotificationMessageHandlerService implements OnModuleInit {
         deadLetter: notificationDeadLetter(),
         exchange: EXCHANGE_NAMES.auth,
         queue: QUEUE_NAMES.notificationEvents,
+        retry: notificationRetry(
+          QUEUE_NAMES.notificationAuthRetry,
+          'notification.auth_event.retry',
+        ),
         routingKeys: [ROUTING_KEYS.authEventUserRegistered],
       },
       async (event) => this.notificationService.handleEvent(event),
@@ -52,6 +59,10 @@ export class NotificationMessageHandlerService implements OnModuleInit {
         deadLetter: notificationDeadLetter(),
         exchange: EXCHANGE_NAMES.order,
         queue: QUEUE_NAMES.notificationEvents,
+        retry: notificationRetry(
+          QUEUE_NAMES.notificationOrderRetry,
+          'notification.order_event.retry',
+        ),
         routingKeys: [
           ROUTING_KEYS.orderEventOrderCancelled,
           ROUTING_KEYS.orderEventOrderConfirmed,
@@ -68,6 +79,10 @@ export class NotificationMessageHandlerService implements OnModuleInit {
         deadLetter: notificationDeadLetter(),
         exchange: EXCHANGE_NAMES.payment,
         queue: QUEUE_NAMES.notificationEvents,
+        retry: notificationRetry(
+          QUEUE_NAMES.notificationPaymentRetry,
+          'notification.payment_event.retry',
+        ),
         routingKeys: [
           ROUTING_KEYS.paymentEventPaymentFailed,
           ROUTING_KEYS.paymentEventPaymentSucceeded,
@@ -83,5 +98,15 @@ function notificationDeadLetter() {
     exchange: EXCHANGE_NAMES.notificationDeadLetter,
     queue: QUEUE_NAMES.notificationDeadLetters,
     routingKey: 'notification.event.failed',
+  };
+}
+
+function notificationRetry(queue: string, routingKey: string) {
+  return {
+    delayMs: RETRY_DELAY_MS,
+    exchange: EXCHANGE_NAMES.notificationRetry,
+    maxAttempts: MAX_RETRY_ATTEMPTS,
+    queue,
+    routingKey,
   };
 }

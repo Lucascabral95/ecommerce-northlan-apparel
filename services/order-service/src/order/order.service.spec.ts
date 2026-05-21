@@ -1,5 +1,6 @@
 import { ConflictException } from '@nestjs/common';
-import { CartDto, OrderStatus } from '@northlane/contracts';
+import { CartDto, OrderStatus, ROUTING_KEYS } from '@northlane/contracts';
+import { randomUUID } from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { OrderService } from './order.service';
 
@@ -140,6 +141,98 @@ describe('OrderService', () => {
     ]);
     expect(rabbitMqClient.routingKeys).toContain('payment.command.request_payment');
   });
+
+  it('confirms the order, confirms stock and clears the cart when payment succeeds', async () => {
+    const createdOrder = await createPaymentPendingOrder(service);
+
+    await service.handlePaymentSucceeded(
+      {
+        amount: 180,
+        currency: 'USD',
+        idempotencyKey: 'checkout-payment-success:payment',
+        orderId: createdOrder.id,
+        paymentId: 'payment-1',
+        provider: 'MOCK',
+        providerPaymentId: 'mock-payment-1',
+        userId: USER_ID,
+      },
+      testContext(),
+    );
+
+    const orderDetail = await service.getOrder({ orderId: createdOrder.id, userId: USER_ID });
+
+    expect(orderDetail.status).toBe('CONFIRMED');
+    expect(orderDetail.paymentId).toBe('payment-1');
+    expect(orderDetail.paymentStatus).toBe('APPROVED');
+    expect(orderDetail.statusHistory.map((history) => history.status)).toEqual([
+      'PENDING',
+      'STOCK_RESERVED',
+      'PAYMENT_PENDING',
+      'PAID',
+      'CONFIRMED',
+    ]);
+    expect(rabbitMqClient.routingKeys).toContain(ROUTING_KEYS.orderEventOrderConfirmed);
+    expect(rabbitMqClient.routingKeys).toContain(ROUTING_KEYS.inventoryCommandConfirmStock);
+    expect(rabbitMqClient.routingKeys).toContain(ROUTING_KEYS.cartCommandClearCart);
+    expect(
+      rabbitMqClient.published.find(
+        (message) => message.routingKey === ROUTING_KEYS.cartCommandClearCart,
+      )?.message.payload,
+    ).toEqual({ userId: USER_ID });
+  });
+
+  it('does not re-run stock confirmation or cart clearing for duplicated payment success events', async () => {
+    const createdOrder = await createPaymentPendingOrder(service);
+    const paymentEvent = {
+      amount: 180,
+      currency: 'USD',
+      idempotencyKey: 'checkout-payment-duplicate:payment',
+      orderId: createdOrder.id,
+      paymentId: 'payment-duplicate',
+      provider: 'MOCK' as const,
+      providerPaymentId: 'mock-payment-duplicate',
+      userId: USER_ID,
+    };
+
+    await service.handlePaymentSucceeded(paymentEvent, testContext());
+    await service.handlePaymentSucceeded(paymentEvent, testContext());
+
+    expect(countRoutingKey(rabbitMqClient, ROUTING_KEYS.inventoryCommandConfirmStock)).toBe(1);
+    expect(countRoutingKey(rabbitMqClient, ROUTING_KEYS.cartCommandClearCart)).toBe(1);
+  });
+
+  it('cancels the order and releases stock when payment fails', async () => {
+    const createdOrder = await createPaymentPendingOrder(service);
+
+    await service.handlePaymentFailed(
+      {
+        amount: 180,
+        currency: 'USD',
+        failureReason: 'Mock payment rejected by metadata outcome.',
+        idempotencyKey: 'checkout-payment-failed:payment',
+        orderId: createdOrder.id,
+        paymentId: 'payment-failed',
+        provider: 'MOCK',
+        userId: USER_ID,
+      },
+      testContext(),
+    );
+
+    const orderDetail = await service.getOrder({ orderId: createdOrder.id, userId: USER_ID });
+
+    expect(orderDetail.status).toBe('CANCELLED');
+    expect(orderDetail.paymentStatus).toBe('REJECTED');
+    expect(orderDetail.statusHistory.map((history) => history.status)).toEqual([
+      'PENDING',
+      'STOCK_RESERVED',
+      'PAYMENT_PENDING',
+      'FAILED',
+      'CANCELLED',
+    ]);
+    expect(rabbitMqClient.routingKeys).toContain(ROUTING_KEYS.orderEventOrderCancelled);
+    expect(rabbitMqClient.routingKeys).toContain(ROUTING_KEYS.inventoryCommandReleaseStock);
+    expect(rabbitMqClient.routingKeys).not.toContain(ROUTING_KEYS.cartCommandClearCart);
+  });
 });
 
 function testContext() {
@@ -183,9 +276,11 @@ class FakeCartClient {
 }
 
 class FakeRabbitMqClient {
+  readonly published: Array<{ message: { payload?: unknown }; routingKey: string }> = [];
   readonly routingKeys: string[] = [];
 
-  async publish(input: { routingKey: string }): Promise<void> {
+  async publish(input: { message: { payload?: unknown }; routingKey: string }): Promise<void> {
+    this.published.push(input);
     this.routingKeys.push(input.routingKey);
   }
 }
@@ -466,4 +561,31 @@ function requiredString(value: unknown): string {
   }
 
   return value;
+}
+
+async function createPaymentPendingOrder(service: OrderService) {
+  const createdOrder = await service.createOrder(
+    {
+      idempotencyKey: randomUUID(),
+      userId: USER_ID,
+    },
+    testContext(),
+  );
+
+  await service.handleStockReserved(
+    {
+      expiresAt: new Date(Date.now() + 900_000).toISOString(),
+      items: [{ quantity: 2, sku: 'NLA-HOOD-BLK-L', variantId: VARIANT_ID }],
+      orderId: createdOrder.id,
+      reservationId: `reservation-${createdOrder.id}`,
+      userId: USER_ID,
+    },
+    testContext(),
+  );
+
+  return createdOrder;
+}
+
+function countRoutingKey(rabbitMqClient: FakeRabbitMqClient, routingKey: string): number {
+  return rabbitMqClient.routingKeys.filter((candidate) => candidate === routingKey).length;
 }

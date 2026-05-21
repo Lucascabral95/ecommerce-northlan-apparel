@@ -8,6 +8,9 @@ import {
 import { RabbitMqClient } from '@northlane/shared';
 import { PaymentService } from './payment.service';
 
+const RETRY_DELAY_MS = 5_000;
+const MAX_RETRY_ATTEMPTS = 3;
+
 @Injectable()
 export class PaymentMessageHandlerService implements OnModuleInit {
   constructor(
@@ -18,8 +21,16 @@ export class PaymentMessageHandlerService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     await this.rabbitMqClient.subscribe<RequestPaymentCommand>(
       {
+        deadLetter: paymentDeadLetter(),
         exchange: EXCHANGE_NAMES.payment,
         queue: QUEUE_NAMES.paymentCommands,
+        retry: {
+          delayMs: RETRY_DELAY_MS,
+          exchange: EXCHANGE_NAMES.paymentRetry,
+          maxAttempts: MAX_RETRY_ATTEMPTS,
+          queue: QUEUE_NAMES.paymentRetry,
+          routingKey: 'payment.command.retry',
+        },
         routingKeys: [ROUTING_KEYS.paymentCommandRequestPayment],
       },
       async (command) => {
@@ -34,4 +45,12 @@ export class PaymentMessageHandlerService implements OnModuleInit {
       },
     );
   }
+}
+
+function paymentDeadLetter() {
+  return {
+    exchange: EXCHANGE_NAMES.paymentDeadLetter,
+    queue: QUEUE_NAMES.paymentDeadLetters,
+    routingKey: 'payment.command.failed',
+  };
 }

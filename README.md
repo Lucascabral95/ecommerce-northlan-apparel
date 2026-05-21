@@ -1,6 +1,6 @@
 # Northlane Apparel
 
-Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 11**: it includes the monorepo foundation, local infrastructure, API Gateway, shared contracts, RabbitMQ-backed auth/user/catalog/inventory/cart/order/payment flows and a notification service with simulated email delivery.
+Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 12**: it includes the monorepo foundation, local infrastructure, API Gateway, shared contracts, RabbitMQ-backed auth/user/catalog/inventory/cart/order/payment/notification flows and the complete checkout saga wiring.
 
 ## Current Scope
 
@@ -18,7 +18,9 @@ Implemented now:
 - Cart Service with Prisma-owned carts and cart items, product snapshots and catalog validation through RabbitMQ request/reply.
 - Order Service with Prisma-owned orders, order items, status history, checkout idempotency and snapshot-based order history.
 - Payment Service with Prisma-owned payments, payment events, MOCK approval/rejection rules and command idempotency.
-- Notification Service with Prisma-owned notification history, simulated email logs and a RabbitMQ DLQ for failed notification events.
+- Event-driven checkout saga from order creation through stock reservation, mock payment, stock confirmation/release, cart clearing and notification events.
+- Retry and DLQ topology support for critical RabbitMQ consumers.
+- Notification Service with Prisma-owned notification history, simulated email logs and RabbitMQ retry/DLQ handling for failed notification events.
 - Eight NestJS service shells under `services/*`.
 - Prisma schema and migrations for implemented services; placeholders remain for future services.
 - Shared and contracts packages.
@@ -28,9 +30,8 @@ Implemented now:
 
 Not implemented yet:
 
-- Complete RabbitMQ topology, retries and DLQs.
-- Order reaction to payment success/failure and cart finalization.
 - Complete frontend UI.
+- End-to-end browser/API test that runs all services against Docker Compose.
 - CI/CD or AWS deployment.
 
 ## Target Architecture
@@ -186,3 +187,9 @@ npm run seed --workspace @northlane/catalog-service
 ```
 
 RabbitMQ is available locally as infrastructure and is used by the auth/user/catalog/inventory/cart/order/payment/notification request-reply flow plus implemented domain events. Notification Service consumes user, order and payment events, persists notification history and simulates email delivery with JSON logs. Failed notification event handling is routed to `notification.events.dlq`.
+
+## Checkout Saga
+
+`POST /api/v1/checkout` publishes `order.command.create_order`. Order Service creates the `PENDING` order idempotently, publishes `inventory.command.reserve_stock`, reacts to `inventory.event.stock_reserved`, moves the order through `STOCK_RESERVED` and `PAYMENT_PENDING`, then publishes `payment.command.request_payment`.
+
+Payment Service processes MOCK payment idempotently and publishes either `payment.event.payment_succeeded` or `payment.event.payment_failed`. Success moves the order to `PAID` and `CONFIRMED`, publishes `inventory.command.confirm_stock`, clears the cart through `cart.command.clear_cart` and emits `order.event.order_confirmed`. Failure moves the order to `FAILED` and `CANCELLED`, publishes `inventory.command.release_stock` and emits `order.event.order_cancelled`.
