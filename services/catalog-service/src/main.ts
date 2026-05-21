@@ -1,10 +1,11 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
-import { JsonLogger, loadServiceConfig } from '@northlane/shared';
+import { JsonLogger } from '@northlane/shared';
 import { AppModule } from './app.module';
-
-const config = loadServiceConfig('catalog-service', 4103);
+import { loadCatalogServiceConfig } from './config/catalog-service.config';
 
 async function bootstrap(): Promise<void> {
+  const config = loadCatalogServiceConfig();
   const app = await NestFactory.create(AppModule, {
     logger: new JsonLogger(config.serviceName),
   });
