@@ -12,9 +12,11 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@nestjs/common": "^11.1.21"
+    "@nestjs/common": "^11.1.21",
+    "amqplib": "^2.0.1"
   },
   "devDependencies": {
+    "@types/amqplib": "^0.10.8",
     "@types/express": "^5.0.0"
   }
 }

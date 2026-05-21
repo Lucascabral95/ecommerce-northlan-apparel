@@ -1,8 +1,53 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("USER_DATABASE_URL")
+}
+
+model Profile {
+  id                  String    @id @default(uuid()) @db.Uuid
+  userId              String    @unique @map("user_id") @db.Uuid
+  firstName           String?   @map("first_name")
+  lastName            String?   @map("last_name")
+  email               String
+  phone               String?
+  birthDate           DateTime? @map("birth_date") @db.Date
+  documentType        String?   @map("document_type")
+  documentNumber      String?   @map("document_number")
+  gender              String?
+  preferredSizes      String[]  @default([]) @map("preferred_sizes")
+  preferredCategories String[]  @default([]) @map("preferred_categories")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  addresses           Address[]
+
+  @@map("profiles")
+}
+
+model Address {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  alias         String
+  recipientName String   @map("recipient_name")
+  phone         String
+  country       String
+  province      String
+  city          String
+  postalCode    String   @map("postal_code")
+  street        String
+  streetNumber  String   @map("street_number")
+  apartment     String?
+  references    String?
+  isDefault     Boolean  @default(false) @map("is_default")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  profile       Profile  @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isDefault])
+  @@map("addresses")
 }

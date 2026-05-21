@@ -1,14 +1,14 @@
 import { Controller, Get } from '@nestjs/common';
-import { loadServiceConfig } from '@northlane/shared';
-
-const config = loadServiceConfig('auth-service', 4101);
+import { AuthServiceConfigService } from './config/auth-service.config';
 
 @Controller('health')
 export class HealthController {
+  constructor(private readonly config: AuthServiceConfigService) {}
+
   @Get()
   getHealth(): Record<string, string> {
     return {
-      service: config.serviceName,
+      service: this.config.serviceName,
       status: 'ok',
     };
   }

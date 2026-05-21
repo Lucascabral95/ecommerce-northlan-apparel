@@ -11,3 +11,4 @@ docker-compose.override.local.yml
 next-env.d.ts
 tmp/
 logs/
+**/src/generated/prisma/

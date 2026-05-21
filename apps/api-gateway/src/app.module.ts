@@ -11,6 +11,8 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
 import { ApiGatewayConfigService } from './config/api-gateway-config.service';
 import { GatewayConfigModule } from './config/gateway-config.module';
 import { HealthModule } from './health/health.module';
+import { MeModule } from './me/me.module';
+import { MessagingModule } from './messaging/messaging.module';
 import { OrdersModule } from './orders/orders.module';
 import { ProductsModule } from './products/products.module';
 
@@ -18,6 +20,7 @@ import { ProductsModule } from './products/products.module';
   imports: [
     GatewayConfigModule,
     CommonModule,
+    MessagingModule,
     ThrottlerModule.forRootAsync({
       imports: [GatewayConfigModule],
       inject: [ApiGatewayConfigService],
@@ -30,6 +33,7 @@ import { ProductsModule } from './products/products.module';
     }),
     HealthModule,
     AuthModule,
+    MeModule,
     ProductsModule,
     CartModule,
     CheckoutModule,

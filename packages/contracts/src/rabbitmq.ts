@@ -21,6 +21,7 @@ export type ExchangeName = (typeof EXCHANGE_NAMES)[keyof typeof EXCHANGE_NAMES];
  */
 export const ROUTING_KEYS = {
   authCommandLogin: 'auth.command.login',
+  authCommandRefresh: 'auth.command.refresh',
   authCommandRegister: 'auth.command.register',
   authEventUserRegistered: 'auth.event.user_registered',
   cartCommandAddItem: 'cart.command.add_item',
@@ -29,6 +30,10 @@ export const ROUTING_KEYS = {
   inventoryCommandReserveStock: 'inventory.command.reserve_stock',
   orderCommandCreateOrder: 'order.command.create_order',
   paymentCommandRequestPayment: 'payment.command.request_payment',
+  userCommandCreateAddress: 'user.command.create_address',
+  userCommandGetProfile: 'user.command.get_profile',
+  userCommandListAddresses: 'user.command.list_addresses',
+  userCommandUpdateProfile: 'user.command.update_profile',
 } as const;
 
 export type RoutingKey = (typeof ROUTING_KEYS)[keyof typeof ROUTING_KEYS];
@@ -49,6 +54,7 @@ export const QUEUE_NAMES = {
   orderCommands: 'order.commands.queue',
   orderEvents: 'order.events.queue',
   paymentCommands: 'payment.commands.queue',
+  userCommands: 'user.commands.queue',
   userEvents: 'user.events.queue',
 } as const;
 

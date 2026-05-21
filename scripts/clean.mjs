@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 const root = process.cwd();
 const targets = ['dist', '.next', '.turbo', 'coverage'];
+const generatedTargets = ['src/generated/prisma'];
 const workspaceParents = ['apps', 'services', 'packages'];
 
 for (const target of targets) {
@@ -19,6 +20,10 @@ for (const workspaceParent of workspaceParents) {
     }
 
     for (const target of targets) {
+      await rm(join(absoluteParent, entry.name, target), { force: true, recursive: true });
+    }
+
+    for (const target of generatedTargets) {
       await rm(join(absoluteParent, entry.name, target), { force: true, recursive: true });
     }
   }

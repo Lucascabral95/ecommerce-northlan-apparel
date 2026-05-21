@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { requireStringEnv } from '@northlane/shared';
 
 const API_GATEWAY_SERVICE_NAME = 'api-gateway';
 const DEFAULT_PORT = 4000;
@@ -14,6 +15,8 @@ export type ApiGatewayConfig = Readonly<{
   logLevel: LogLevel;
   nodeEnv: NodeEnv;
   port: number;
+  jwtAccessSecret: string;
+  rabbitMqUrl: string;
   rateLimit: Readonly<{
     limit: number;
     ttlMs: number;
@@ -41,6 +44,14 @@ export class ApiGatewayConfigService {
     return this.config.port;
   }
 
+  get jwtAccessSecret(): string {
+    return this.config.jwtAccessSecret;
+  }
+
+  get rabbitMqUrl(): string {
+    return this.config.rabbitMqUrl;
+  }
+
   get rateLimit(): ApiGatewayConfig['rateLimit'] {
     return this.config.rateLimit;
   }
@@ -56,6 +67,8 @@ export function loadApiGatewayConfig(env: NodeJS.ProcessEnv = process.env): ApiG
     logLevel: parseLogLevel(env.LOG_LEVEL),
     nodeEnv: parseNodeEnv(env.NODE_ENV),
     port: parsePort(env.API_GATEWAY_PORT ?? env.PORT, DEFAULT_PORT),
+    jwtAccessSecret: requireStringEnv('JWT_ACCESS_SECRET', env.JWT_ACCESS_SECRET),
+    rabbitMqUrl: requireStringEnv('RABBITMQ_URL', env.RABBITMQ_URL),
     rateLimit: {
       limit: parsePositiveInteger(env.API_RATE_LIMIT_LIMIT, DEFAULT_RATE_LIMIT_LIMIT, 'API_RATE_LIMIT_LIMIT'),
       ttlMs: parsePositiveInteger(env.API_RATE_LIMIT_TTL_MS, DEFAULT_RATE_LIMIT_TTL_MS, 'API_RATE_LIMIT_TTL_MS'),

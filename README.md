@@ -1,6 +1,6 @@
 # Northlane Apparel
 
-Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 3**: it defines the monorepo structure, local infrastructure and a hardened API Gateway base without implementing business workflows yet.
+Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 5**: it defines the monorepo structure, local infrastructure, API Gateway base, shared contracts and the first RabbitMQ-backed auth/user flow.
 
 ## Current Scope
 
@@ -11,6 +11,8 @@ Implemented now:
 - Strict TypeScript base configuration.
 - Minimal Next.js app in `apps/web`.
 - NestJS API Gateway base in `apps/api-gateway` with `/api/v1`, health check, typed environment configuration, CORS, Helmet, rate limiting, structured request logs, correlation IDs, validation pipe and consistent error responses.
+- Auth Service with Prisma-owned credentials tables, bcrypt password hashing, JWT access tokens, refresh tokens and RabbitMQ request/reply handlers.
+- User Service with Prisma-owned profiles and addresses, plus `UserRegisteredEvent` consumption to create the initial profile.
 - Eight NestJS service shells under `services/*`.
 - Prisma schema placeholder per service.
 - Shared and contracts packages.
@@ -20,9 +22,8 @@ Implemented now:
 
 Not implemented yet:
 
-- RabbitMQ topology or messaging code.
+- Complete RabbitMQ topology, retries and DLQs.
 - Product catalog, cart, checkout, orders or payments.
-- Real authentication and authorization.
 - Complete frontend UI.
 - CI/CD or AWS deployment.
 
@@ -120,7 +121,13 @@ The public HTTP boundary is available under `/api/v1`.
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/v1/health` | Health check for local and future container probes. |
-| `GET /api/v1/auth` | Placeholder module boundary. |
+| `POST /api/v1/auth/register` | Register a user through Auth Service request/reply. |
+| `POST /api/v1/auth/login` | Login and issue access/refresh tokens. |
+| `POST /api/v1/auth/refresh` | Rotate refresh token and issue a new access token. |
+| `GET /api/v1/me` | Get the authenticated user's profile. |
+| `PATCH /api/v1/me/profile` | Update personal profile data. |
+| `GET /api/v1/me/addresses` | List authenticated user's addresses. |
+| `POST /api/v1/me/addresses` | Create an address for the authenticated user. |
 | `GET /api/v1/products` | Placeholder module boundary. |
 | `GET /api/v1/cart` | Placeholder module boundary. |
 | `GET /api/v1/checkout` | Placeholder module boundary. |
@@ -146,4 +153,4 @@ Every HTTP response includes or propagates `x-correlation-id`. Request logs are 
 
 Each service has its own `prisma/schema.prisma` file with an isolated datasource placeholder. Domain models and migrations are intentionally deferred until the corresponding service is implemented.
 
-RabbitMQ is available locally as infrastructure, but exchanges, queues, retry policy, DLQs and application messaging code are intentionally deferred to a later phase. API Gateway placeholder modules do not call RabbitMQ or internal services yet.
+RabbitMQ is available locally as infrastructure and is used by the Phase 5 auth/user flow. Full retry policy, DLQs and production-grade topology management are intentionally deferred to a later phase.
