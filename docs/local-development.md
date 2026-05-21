@@ -1,6 +1,6 @@
 # Local Development
 
-This document covers local infrastructure, the API Gateway foundation, the Phase 5 auth/user flow, the Phase 6 catalog flow, the Phase 7 inventory flow, the Phase 8 cart flow and the Phase 9 order flow. Payment confirmation, cart finalization and notifications are still intentionally out of scope.
+This document covers local infrastructure, the API Gateway foundation, the Phase 5 auth/user flow, the Phase 6 catalog flow, the Phase 7 inventory flow, the Phase 8 cart flow, the Phase 9 order flow and the Phase 10 MOCK payment flow. Order reaction to payment events, cart finalization and notifications are still intentionally out of scope.
 
 ## Requirements
 
@@ -43,6 +43,11 @@ Default infrastructure values:
 | `CART_DATABASE_URL`                 | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=cart_service`      |
 | `ORDER_SERVICE_PORT`                | `4106`                                                                                        |
 | `ORDER_DATABASE_URL`                | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=order_service`     |
+| `PAYMENT_SERVICE_PORT`              | `4107`                                                                                        |
+| `PAYMENT_PROVIDER_MODE`             | `MOCK`                                                                                        |
+| `PAYMENT_MOCK_FAILURE_AMOUNT`       | `13.37`                                                                                       |
+| `PAYMENT_MOCK_FORCE_FAILURE`        | `false`                                                                                       |
+| `PAYMENT_DATABASE_URL`              | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=payment_service`   |
 
 ## Commands
 
@@ -69,6 +74,7 @@ make down
 | Inventory Service health | `http://localhost:4104/health`          |
 | Cart Service health      | `http://localhost:4105/health`          |
 | Order Service health     | `http://localhost:4106/health`          |
+| Payment Service health   | `http://localhost:4107/health`          |
 | RabbitMQ Management UI   | `http://localhost:15672`                |
 | PostgreSQL               | `localhost:5432`                        |
 | Redis                    | `localhost:6379`                        |
@@ -77,7 +83,7 @@ RabbitMQ credentials default to `northlane / northlane`.
 
 ## Database Migrations
 
-Auth, User, Catalog, Inventory, Cart and Order services own separate PostgreSQL schemas through Prisma.
+Auth, User, Catalog, Inventory, Cart, Order and Payment services own separate PostgreSQL schemas through Prisma.
 
 ```bash
 npm run prisma:migrate --workspace @northlane/auth-service
@@ -86,10 +92,11 @@ npm run prisma:migrate --workspace @northlane/catalog-service
 npm run prisma:migrate --workspace @northlane/inventory-service
 npm run prisma:migrate --workspace @northlane/cart-service
 npm run prisma:migrate --workspace @northlane/order-service
+npm run prisma:migrate --workspace @northlane/payment-service
 npm run seed --workspace @northlane/catalog-service
 ```
 
-The required URLs are `AUTH_DATABASE_URL`, `USER_DATABASE_URL`, `CATALOG_DATABASE_URL`, `INVENTORY_DATABASE_URL`, `CART_DATABASE_URL` and `ORDER_DATABASE_URL`.
+The required URLs are `AUTH_DATABASE_URL`, `USER_DATABASE_URL`, `CATALOG_DATABASE_URL`, `INVENTORY_DATABASE_URL`, `CART_DATABASE_URL`, `ORDER_DATABASE_URL` and `PAYMENT_DATABASE_URL`.
 
 ## Phase 5 Flow
 
@@ -134,11 +141,21 @@ The required URLs are `AUTH_DATABASE_URL`, `USER_DATABASE_URL`, `CATALOG_DATABAS
 7. `GET /api/v1/orders` and `GET /api/v1/orders/:id` read order history and detail through RabbitMQ request/reply.
 8. Admin order status changes use `order.command.update_status` and append immutable status history.
 
+## Phase 10 Payment Flow
+
+1. `payment-service` consumes `payment.command.request_payment` from `payment.exchange`.
+2. Only `provider: MOCK` is accepted in this phase. Stripe and Mercado Pago remain intentionally out of scope.
+3. Payment requests are persisted in the `payment_service` schema with idempotency by `orderId` and `idempotencyKey`.
+4. Repeating the same `orderId`, `idempotencyKey` and payload returns the original payment without creating duplicate rows or events.
+5. Reusing the same `orderId` or `idempotencyKey` with a different payload returns an idempotency conflict.
+6. A normal MOCK payment is saved as `APPROVED` and publishes `payment.event.payment_succeeded`.
+7. A MOCK payment is saved as `REJECTED` and publishes `payment.event.payment_failed` when `metadata.simulateFailure`, `metadata.forceFailure`, `metadata.mockOutcome: "REJECTED"` or the configured `PAYMENT_MOCK_FAILURE_AMOUNT` is used.
+
 ## Scope Notes
 
 - Full dead-letter queues and retry policies are not implemented yet.
 - Redis is available for later caching/rate-limit/session use cases, but no application code uses it yet.
 - Catalog variant stock fields are historical merchandising data from Phase 6; authoritative reservations and stock movements now belong to Inventory Service.
-- Cart does not reserve stock. Order creation now starts stock reservation, but the full payment/confirmation saga remains deferred.
+- Cart does not reserve stock. Order creation now starts stock reservation, and Payment Service can process the MOCK payment command. Order status updates after payment success/failure remain deferred.
 - API Gateway rate limiting uses in-memory throttling for now; Redis-backed distributed throttling is intentionally deferred.
 - Prometheus is intentionally deferred until services expose production metrics.
