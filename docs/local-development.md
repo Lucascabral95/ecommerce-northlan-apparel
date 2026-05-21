@@ -1,6 +1,6 @@
 # Local Development
 
-This document covers local infrastructure, the API Gateway foundation, the Phase 5 auth/user flow, the Phase 6 catalog flow and the Phase 7 inventory flow. Cart, checkout and payment workflows are still intentionally out of scope.
+This document covers local infrastructure, the API Gateway foundation, the Phase 5 auth/user flow, the Phase 6 catalog flow, the Phase 7 inventory flow and the Phase 8 cart flow. Checkout and payment workflows are still intentionally out of scope.
 
 ## Requirements
 
@@ -39,6 +39,8 @@ Default infrastructure values:
 | `INVENTORY_SERVICE_PORT` | `4104` |
 | `INVENTORY_RESERVATION_TTL_SECONDS` | `900` |
 | `INVENTORY_DATABASE_URL` | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=inventory_service` |
+| `CART_SERVICE_PORT` | `4105` |
+| `CART_DATABASE_URL` | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=cart_service` |
 
 ## Commands
 
@@ -63,6 +65,7 @@ make down
 | Product catalog | `http://localhost:4000/api/v1/products` |
 | Catalog Service health | `http://localhost:4103/health` |
 | Inventory Service health | `http://localhost:4104/health` |
+| Cart Service health | `http://localhost:4105/health` |
 | RabbitMQ Management UI | `http://localhost:15672` |
 | PostgreSQL | `localhost:5432` |
 | Redis | `localhost:6379` |
@@ -71,17 +74,18 @@ RabbitMQ credentials default to `northlane / northlane`.
 
 ## Database Migrations
 
-Auth, User, Catalog and Inventory services own separate PostgreSQL schemas through Prisma.
+Auth, User, Catalog, Inventory and Cart services own separate PostgreSQL schemas through Prisma.
 
 ```bash
 npm run prisma:migrate --workspace @northlane/auth-service
 npm run prisma:migrate --workspace @northlane/user-service
 npm run prisma:migrate --workspace @northlane/catalog-service
 npm run prisma:migrate --workspace @northlane/inventory-service
+npm run prisma:migrate --workspace @northlane/cart-service
 npm run seed --workspace @northlane/catalog-service
 ```
 
-The required URLs are `AUTH_DATABASE_URL`, `USER_DATABASE_URL`, `CATALOG_DATABASE_URL` and `INVENTORY_DATABASE_URL`.
+The required URLs are `AUTH_DATABASE_URL`, `USER_DATABASE_URL`, `CATALOG_DATABASE_URL`, `INVENTORY_DATABASE_URL` and `CART_DATABASE_URL`.
 
 ## Phase 5 Flow
 
@@ -107,10 +111,19 @@ The required URLs are `AUTH_DATABASE_URL`, `USER_DATABASE_URL`, `CATALOG_DATABAS
 4. Stock reservation uses row-level locks in PostgreSQL and updates `reserved_stock` only when every item has enough available stock.
 5. Reservation, confirmation, release and adjustment publish inventory events through RabbitMQ.
 
+## Phase 8 Cart Flow
+
+1. `GET /api/v1/cart` sends `cart.command.get_cart` through RabbitMQ and creates an empty active cart if needed.
+2. `POST /api/v1/cart/items` sends `cart.command.add_item`; `cart-service` validates the product and variant against `catalog-service` through request/reply.
+3. If the same variant is already in the cart, quantity is incremented instead of creating a duplicate row.
+4. Product title, slug, image, selected size/color, SKU and unit price are stored as snapshots in `cart_items`.
+5. `PATCH`, `DELETE /items/:itemId` and `DELETE /cart` update the active cart and return recalculated totals.
+
 ## Scope Notes
 
 - Full dead-letter queues and retry policies are not implemented yet.
 - Redis is available for later caching/rate-limit/session use cases, but no application code uses it yet.
 - Catalog variant stock fields are historical merchandising data from Phase 6; authoritative reservations and stock movements now belong to Inventory Service.
+- Cart does not reserve stock. Stock reservation starts in the future checkout/order saga.
 - API Gateway rate limiting uses in-memory throttling for now; Redis-backed distributed throttling is intentionally deferred.
 - Prometheus is intentionally deferred until services expose production metrics.
