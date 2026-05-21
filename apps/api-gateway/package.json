@@ -15,6 +15,7 @@
     "@nestjs/core": "^11.1.21",
     "@nestjs/platform-express": "^11.1.21",
     "@nestjs/throttler": "^6.5.0",
+    "@northlane/contracts": "0.1.0",
     "@northlane/shared": "0.1.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",

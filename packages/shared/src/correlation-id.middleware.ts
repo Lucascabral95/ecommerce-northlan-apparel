@@ -11,10 +11,7 @@ export type CorrelatedRequest = Request & {
 @Injectable()
 export class CorrelationIdMiddleware implements NestMiddleware {
   use(request: CorrelatedRequest, response: Response, next: NextFunction): void {
-    const incomingCorrelationId = request.header(CORRELATION_ID_HEADER);
-    const correlationId = incomingCorrelationId && incomingCorrelationId.trim().length > 0
-      ? incomingCorrelationId
-      : randomUUID();
+    const correlationId = ensureCorrelationId(request.header(CORRELATION_ID_HEADER));
 
     request.correlationId = correlationId;
     response.setHeader(CORRELATION_ID_HEADER, correlationId);
@@ -22,6 +19,15 @@ export class CorrelationIdMiddleware implements NestMiddleware {
   }
 }
 
+export function createCorrelationId(): string {
+  return randomUUID();
+}
+
+export function ensureCorrelationId(candidate: string | undefined): string {
+  const normalizedCandidate = candidate?.trim();
+  return normalizedCandidate && normalizedCandidate.length > 0 ? normalizedCandidate : createCorrelationId();
+}
+
 export function getCorrelationId(request: CorrelatedRequest): string {
-  return request.correlationId ?? request.header(CORRELATION_ID_HEADER) ?? randomUUID();
+  return ensureCorrelationId(request.correlationId ?? request.header(CORRELATION_ID_HEADER));
 }
