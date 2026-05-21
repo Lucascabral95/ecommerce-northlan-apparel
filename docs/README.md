@@ -1,5 +1,8 @@
 # Documentation
 
-This directory will hold architecture, event-driven flow, database design and deployment documentation in later phases.
+This directory holds project documentation for Northlane Apparel.
 
-Phase 1 keeps only this placeholder so the documentation boundary is explicit without claiming that runtime architecture is already implemented.
+Current documents:
+
+- `local-development.md`: local Docker Compose infrastructure and development URLs.
+- `event-driven-flow.md`: RabbitMQ exchanges, retry/DLQ strategy and checkout saga flow.

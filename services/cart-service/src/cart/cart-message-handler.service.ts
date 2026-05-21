@@ -3,6 +3,9 @@ import { CartCommand, EXCHANGE_NAMES, QUEUE_NAMES, ROUTING_KEYS } from '@northla
 import { RabbitMqClient } from '@northlane/shared';
 import { CartService } from './cart.service';
 
+const RETRY_DELAY_MS = 5_000;
+const MAX_RETRY_ATTEMPTS = 3;
+
 @Injectable()
 export class CartMessageHandlerService implements OnModuleInit {
   constructor(
@@ -13,8 +16,16 @@ export class CartMessageHandlerService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     await this.rabbitMqClient.subscribe<CartCommand>(
       {
+        deadLetter: cartDeadLetter(),
         exchange: EXCHANGE_NAMES.cart,
         queue: QUEUE_NAMES.cartCommands,
+        retry: {
+          delayMs: RETRY_DELAY_MS,
+          exchange: EXCHANGE_NAMES.cartRetry,
+          maxAttempts: MAX_RETRY_ATTEMPTS,
+          queue: QUEUE_NAMES.cartRetry,
+          routingKey: 'cart.command.retry',
+        },
         routingKeys: [
           ROUTING_KEYS.cartCommandAddItem,
           ROUTING_KEYS.cartCommandClearCart,
@@ -53,4 +64,12 @@ export class CartMessageHandlerService implements OnModuleInit {
       },
     );
   }
+}
+
+function cartDeadLetter() {
+  return {
+    exchange: EXCHANGE_NAMES.cartDeadLetter,
+    queue: QUEUE_NAMES.cartDeadLetters,
+    routingKey: 'cart.command.failed',
+  };
 }

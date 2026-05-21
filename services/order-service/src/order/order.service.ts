@@ -13,6 +13,8 @@ import {
   OrderDto,
   OrderStatus,
   OrderStatusChangedEventPayload,
+  PaymentFailedEventPayload,
+  PaymentSucceededEventPayload,
   ROUTING_KEYS,
   StockReservationFailedEventPayload,
   StockReservedEventPayload,
@@ -239,13 +241,190 @@ export class OrderService {
       await this.transitionStatus(tx, existingOrder, 'FAILED', {
         reason: payload.reason,
       });
+      const failedOrder = await tx.order.findUniqueOrThrow({
+        where: { id: existingOrder.id },
+      });
+      await this.transitionStatus(tx, failedOrder, 'CANCELLED', {
+        reason: 'Order cancelled because stock could not be reserved.',
+      });
 
       return this.fetchOrder(tx, existingOrder.id);
     });
 
     if (order) {
       await this.publishStatusChanged(order, context);
+      await this.publishOrderLifecycleEvent(order, ROUTING_KEYS.orderEventOrderCancelled, context);
     }
+  }
+
+  async handlePaymentSucceeded(
+    payload: PaymentSucceededEventPayload,
+    context: MessageContext,
+  ): Promise<void> {
+    const order = await this.prisma.$transaction(async (tx) => {
+      const existingOrder = await tx.order.findUnique({ where: { id: payload.orderId } });
+      if (!existingOrder || isTerminalOrder(existingOrder.status)) {
+        return undefined;
+      }
+      if (!canApplyPaymentResult(existingOrder.status)) {
+        throw new ConflictException(
+          `Payment succeeded event cannot be applied while order is ${existingOrder.status}.`,
+        );
+      }
+
+      let currentOrder = await tx.order.update({
+        data: {
+          paymentId: payload.paymentId,
+          paymentStatus: 'APPROVED',
+        },
+        where: { id: existingOrder.id },
+      });
+
+      if (currentOrder.status !== 'PAID') {
+        await this.transitionStatus(tx, currentOrder, 'PAID', {
+          reason: `Mock payment ${payload.paymentId} was approved.`,
+        });
+        currentOrder = await tx.order.findUniqueOrThrow({ where: { id: existingOrder.id } });
+      }
+
+      await this.transitionStatus(tx, currentOrder, 'CONFIRMED', {
+        reason: 'Order confirmed after successful payment.',
+      });
+
+      return this.fetchOrder(tx, existingOrder.id);
+    });
+
+    if (!order) {
+      return;
+    }
+
+    await this.publishStatusChanged(order, context);
+    await this.publishOrderLifecycleEvent(order, ROUTING_KEYS.orderEventOrderConfirmed, context);
+    await this.publishConfirmStockCommand(order, context);
+    await this.publishClearCartCommand(order, context);
+  }
+
+  async handlePaymentFailed(
+    payload: PaymentFailedEventPayload,
+    context: MessageContext,
+  ): Promise<void> {
+    const order = await this.prisma.$transaction(async (tx) => {
+      const existingOrder = await tx.order.findUnique({ where: { id: payload.orderId } });
+      if (!existingOrder || isTerminalOrder(existingOrder.status)) {
+        return undefined;
+      }
+      if (!canApplyPaymentResult(existingOrder.status)) {
+        throw new ConflictException(
+          `Payment failed event cannot be applied while order is ${existingOrder.status}.`,
+        );
+      }
+
+      let currentOrder = await tx.order.update({
+        data: {
+          paymentId: payload.paymentId,
+          paymentStatus: 'REJECTED',
+        },
+        where: { id: existingOrder.id },
+      });
+
+      if (currentOrder.status !== 'FAILED') {
+        await this.transitionStatus(tx, currentOrder, 'FAILED', {
+          reason: payload.failureReason,
+        });
+        currentOrder = await tx.order.findUniqueOrThrow({ where: { id: existingOrder.id } });
+      }
+
+      await this.transitionStatus(tx, currentOrder, 'CANCELLED', {
+        reason: 'Order cancelled after rejected payment.',
+      });
+
+      return this.fetchOrder(tx, existingOrder.id);
+    });
+
+    if (!order) {
+      return;
+    }
+
+    await this.publishStatusChanged(order, context);
+    await this.publishOrderLifecycleEvent(order, ROUTING_KEYS.orderEventOrderCancelled, context);
+    await this.publishReleaseStockCommand(order, context);
+  }
+
+  private async publishOrderLifecycleEvent(
+    order: OrderWithRelations,
+    routingKey:
+      | typeof ROUTING_KEYS.orderEventOrderCancelled
+      | typeof ROUTING_KEYS.orderEventOrderConfirmed,
+    context: MessageContext,
+  ): Promise<void> {
+    const payload: OrderStatusChangedEventPayload = {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      userId: order.userId,
+    };
+    await this.rabbitMqClient.publish({
+      correlationId: context.correlationId,
+      exchange: EXCHANGE_NAMES.order,
+      message: createOrderMessageEnvelope(routingKey, payload, context),
+      routingKey,
+    });
+  }
+
+  private async publishConfirmStockCommand(
+    order: OrderWithRelations,
+    context: MessageContext,
+  ): Promise<void> {
+    await this.rabbitMqClient.publish({
+      correlationId: context.correlationId,
+      exchange: EXCHANGE_NAMES.inventory,
+      message: createOrderMessageEnvelope(
+        ROUTING_KEYS.inventoryCommandConfirmStock,
+        {
+          orderId: order.id,
+          reason: `Order ${order.orderNumber} confirmed after payment approval.`,
+        },
+        context,
+      ),
+      routingKey: ROUTING_KEYS.inventoryCommandConfirmStock,
+    });
+  }
+
+  private async publishReleaseStockCommand(
+    order: OrderWithRelations,
+    context: MessageContext,
+  ): Promise<void> {
+    await this.rabbitMqClient.publish({
+      correlationId: context.correlationId,
+      exchange: EXCHANGE_NAMES.inventory,
+      message: createOrderMessageEnvelope(
+        ROUTING_KEYS.inventoryCommandReleaseStock,
+        {
+          orderId: order.id,
+          reason: `Order ${order.orderNumber} cancelled before stock confirmation.`,
+        },
+        context,
+      ),
+      routingKey: ROUTING_KEYS.inventoryCommandReleaseStock,
+    });
+  }
+
+  private async publishClearCartCommand(
+    order: OrderWithRelations,
+    context: MessageContext,
+  ): Promise<void> {
+    await this.rabbitMqClient.publish({
+      correlationId: context.correlationId,
+      exchange: EXCHANGE_NAMES.cart,
+      message: createOrderMessageEnvelope(
+        ROUTING_KEYS.cartCommandClearCart,
+        {
+          userId: order.userId,
+        },
+        context,
+      ),
+      routingKey: ROUTING_KEYS.cartCommandClearCart,
+    });
   }
 
   private async transitionStatus(
@@ -423,4 +602,12 @@ function toJson(value: unknown): Prisma.InputJsonValue | undefined {
 
 function toNumber(value: Prisma.Decimal): number {
   return Number(value.toString());
+}
+
+function isTerminalOrder(status: OrderStatus): boolean {
+  return status === 'CANCELLED' || status === 'CONFIRMED' || status === 'REFUNDED';
+}
+
+function canApplyPaymentResult(status: OrderStatus): boolean {
+  return status === 'PAYMENT_PENDING' || status === 'STOCK_RESERVED' || status === 'PAID';
 }
