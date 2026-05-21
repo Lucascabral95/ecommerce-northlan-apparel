@@ -343,15 +343,184 @@ export type ReserveStockItemPayload = Readonly<{
 }>;
 
 export type ReserveStockCommandPayload = Readonly<{
+  expiresAt?: string;
+  expiresInSeconds?: number;
   idempotencyKey: string;
   items: readonly ReserveStockItemPayload[];
   orderId: string;
+  reservationId?: string;
   userId: string;
 }>;
 
 export type ReserveStockCommand = BaseCommand<
   ReserveStockCommandPayload,
   typeof ROUTING_KEYS.inventoryCommandReserveStock
+>;
+
+export type StockReservationReferencePayload = Readonly<
+  (
+    | {
+        orderId: string;
+        reservationId?: string;
+      }
+    | {
+        orderId?: string;
+        reservationId: string;
+      }
+  ) & {
+    reason?: string;
+  }
+>;
+
+export type ConfirmStockReservationCommandPayload = StockReservationReferencePayload;
+
+export type ConfirmStockReservationCommand = BaseCommand<
+  ConfirmStockReservationCommandPayload,
+  typeof ROUTING_KEYS.inventoryCommandConfirmStock
+>;
+
+export type ReleaseStockReservationCommandPayload = StockReservationReferencePayload;
+
+export type ReleaseStockReservationCommand = BaseCommand<
+  ReleaseStockReservationCommandPayload,
+  typeof ROUTING_KEYS.inventoryCommandReleaseStock
+>;
+
+export type AdjustStockMode = 'DECREMENT' | 'INCREMENT' | 'SET';
+
+export type AdjustStockCommandPayload = Readonly<{
+  idempotencyKey?: string;
+  mode: AdjustStockMode;
+  productId: string;
+  quantity: number;
+  reason: string;
+  sku: string;
+  variantId: string;
+}>;
+
+export type AdjustStockCommand = BaseCommand<
+  AdjustStockCommandPayload,
+  typeof ROUTING_KEYS.inventoryCommandAdjustStock
+>;
+
+export type InventoryItemDto = Readonly<{
+  availableStock: number;
+  createdAt: string;
+  id: string;
+  isActive: boolean;
+  productId: string;
+  reservedStock: number;
+  sku: string;
+  stockOnHand: number;
+  updatedAt: string;
+  variantId: string;
+}>;
+
+export type StockReservationStatus = 'CONFIRMED' | 'EXPIRED' | 'FAILED' | 'PENDING' | 'RELEASED';
+
+export type StockReservationItemDto = Readonly<{
+  inventoryItemId?: string;
+  quantity: number;
+  sku: string;
+  variantId: string;
+}>;
+
+export type StockReservationDto = Readonly<{
+  confirmedAt?: string;
+  createdAt: string;
+  expiresAt: string;
+  failureReason?: string;
+  idempotencyKey: string;
+  items: readonly StockReservationItemDto[];
+  orderId: string;
+  releasedAt?: string;
+  reservationId: string;
+  status: StockReservationStatus;
+  updatedAt: string;
+  userId: string;
+}>;
+
+export type StockMovementType = 'ADJUST' | 'CONFIRM' | 'RELEASE' | 'RESERVE';
+
+export type StockMovementDto = Readonly<{
+  createdAt: string;
+  id: string;
+  inventoryItemId: string;
+  quantity: number;
+  reason: string;
+  referenceId?: string;
+  referenceType?: string;
+  reservedStockAfter: number;
+  reservedStockBefore: number;
+  stockOnHandAfter: number;
+  stockOnHandBefore: number;
+  type: StockMovementType;
+}>;
+
+export type StockReservedEventPayload = Readonly<{
+  expiresAt: string;
+  items: readonly StockReservationItemDto[];
+  orderId: string;
+  reservationId: string;
+  userId: string;
+}>;
+
+export type StockReservedEvent = BaseEvent<
+  StockReservedEventPayload,
+  typeof ROUTING_KEYS.inventoryEventStockReserved
+>;
+
+export type StockReservationFailedEventPayload = Readonly<{
+  failedItems: readonly ReserveStockItemPayload[];
+  orderId: string;
+  reason: string;
+  reservationId: string;
+  userId: string;
+}>;
+
+export type StockReservationFailedEvent = BaseEvent<
+  StockReservationFailedEventPayload,
+  typeof ROUTING_KEYS.inventoryEventStockReservationFailed
+>;
+
+export type StockConfirmedEventPayload = Readonly<{
+  items: readonly StockReservationItemDto[];
+  orderId: string;
+  reservationId: string;
+  userId: string;
+}>;
+
+export type StockConfirmedEvent = BaseEvent<
+  StockConfirmedEventPayload,
+  typeof ROUTING_KEYS.inventoryEventStockConfirmed
+>;
+
+export type StockReleasedEventPayload = Readonly<{
+  items: readonly StockReservationItemDto[];
+  orderId: string;
+  reservationId: string;
+  userId: string;
+}>;
+
+export type StockReleasedEvent = BaseEvent<
+  StockReleasedEventPayload,
+  typeof ROUTING_KEYS.inventoryEventStockReleased
+>;
+
+export type StockAdjustedEventPayload = Readonly<{
+  inventoryItem: InventoryItemDto;
+  mode: AdjustStockMode;
+  movementId: string;
+  productId: string;
+  quantity: number;
+  reason: string;
+  sku: string;
+  variantId: string;
+}>;
+
+export type StockAdjustedEvent = BaseEvent<
+  StockAdjustedEventPayload,
+  typeof ROUTING_KEYS.inventoryEventStockAdjusted
 >;
 
 export type RequestPaymentCommandPayload = Readonly<{
@@ -478,6 +647,8 @@ export type CreateAddressCommand = BaseCommand<
 
 export type InitialCommand =
   | AddCartItemCommand
+  | AdjustStockCommand
+  | ConfirmStockReservationCommand
   | CreateProductCommand
   | CreateOrderCommand
   | GetCategoriesCommand
@@ -489,9 +660,18 @@ export type InitialCommand =
   | RefreshTokenCommand
   | RegisterUserCommand
   | CreateAddressCommand
+  | ReleaseStockReservationCommand
   | RequestPaymentCommand
   | ReserveStockCommand
   | UpdateProductCommand
   | UpdateProfileCommand;
 
-export type InitialEvent = ProductCreatedEvent | ProductUpdatedEvent | UserRegisteredEvent;
+export type InitialEvent =
+  | ProductCreatedEvent
+  | ProductUpdatedEvent
+  | StockAdjustedEvent
+  | StockConfirmedEvent
+  | StockReleasedEvent
+  | StockReservationFailedEvent
+  | StockReservedEvent
+  | UserRegisteredEvent;

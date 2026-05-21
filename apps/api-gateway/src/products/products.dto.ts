@@ -8,6 +8,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -29,6 +30,7 @@ const PRODUCT_TYPES = [
 const PRODUCT_FITS = ['OVERSIZED', 'REGULAR', 'RELAXED', 'SLIM'] as const;
 const PRODUCT_SEASONS = ['ALL_SEASON', 'MID_SEASON', 'SUMMER', 'WINTER'] as const;
 const SORT_OPTIONS = ['newest', 'price_asc', 'price_desc', 'relevance'] as const;
+const STOCK_ADJUST_MODES = ['DECREMENT', 'INCREMENT', 'SET'] as const;
 
 export class ListProductsQueryDto {
   @IsOptional()
@@ -437,4 +439,28 @@ export class UpdateProductRequestDto {
   @ValidateNested({ each: true })
   @Type(() => ProductVariantRequestDto)
   variants?: ProductVariantRequestDto[];
+}
+
+export class AdjustProductStockRequestDto {
+  @IsOptional()
+  @IsString()
+  idempotencyKey?: string;
+
+  @IsOptional()
+  @IsIn(STOCK_ADJUST_MODES)
+  mode?: (typeof STOCK_ADJUST_MODES)[number];
+
+  @IsInt()
+  @Min(0)
+  quantity!: number;
+
+  @IsOptional()
+  @IsString()
+  reason?: string;
+
+  @IsString()
+  sku!: string;
+
+  @IsUUID()
+  variantId!: string;
 }

@@ -1,8 +1,85 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("INVENTORY_DATABASE_URL")
+}
+
+enum StockReservationStatus {
+  PENDING
+  CONFIRMED
+  RELEASED
+  EXPIRED
+  FAILED
+}
+
+enum StockMovementType {
+  RESERVE
+  CONFIRM
+  RELEASE
+  ADJUST
+}
+
+model InventoryItem {
+  id                String          @id @default(uuid()) @db.Uuid
+  productId         String          @map("product_id") @db.Uuid
+  variantId         String          @unique @map("variant_id") @db.Uuid
+  sku               String          @unique
+  stockOnHand       Int             @default(0) @map("stock_on_hand")
+  reservedStock     Int             @default(0) @map("reserved_stock")
+  lowStockThreshold Int             @default(5) @map("low_stock_threshold")
+  isActive          Boolean         @default(true) @map("is_active")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  movements         StockMovement[]
+
+  @@index([productId])
+  @@index([sku])
+  @@map("inventory_items")
+}
+
+model StockReservation {
+  id             String                 @id @default(uuid()) @db.Uuid
+  reservationId  String                 @unique @map("reservation_id")
+  orderId        String                 @unique @map("order_id")
+  idempotencyKey String                 @unique @map("idempotency_key")
+  userId         String                 @map("user_id")
+  status         StockReservationStatus @default(PENDING)
+  items          Json
+  itemsHash      String                 @map("items_hash")
+  failureReason  String?                @map("failure_reason")
+  expiresAt      DateTime               @map("expires_at")
+  confirmedAt    DateTime?              @map("confirmed_at")
+  releasedAt     DateTime?              @map("released_at")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([expiresAt])
+  @@map("stock_reservations")
+}
+
+model StockMovement {
+  id                  String            @id @default(uuid()) @db.Uuid
+  inventoryItemId     String            @map("inventory_item_id") @db.Uuid
+  type                StockMovementType
+  quantity            Int
+  stockOnHandBefore   Int               @map("stock_on_hand_before")
+  stockOnHandAfter    Int               @map("stock_on_hand_after")
+  reservedStockBefore Int               @map("reserved_stock_before")
+  reservedStockAfter  Int               @map("reserved_stock_after")
+  reason              String
+  referenceType       String?           @map("reference_type")
+  referenceId         String?           @map("reference_id")
+  metadata            Json?
+  createdAt           DateTime          @default(now()) @map("created_at")
+  inventoryItem       InventoryItem     @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+
+  @@index([inventoryItemId])
+  @@index([referenceType, referenceId])
+  @@index([createdAt])
+  @@map("stock_movements")
 }

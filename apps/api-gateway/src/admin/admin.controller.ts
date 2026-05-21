@@ -1,8 +1,14 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { ProductDto, ProductListResponseDto } from '@northlane/contracts';
+import { InventoryItemDto, ProductDto, ProductListResponseDto } from '@northlane/contracts';
 import { getCorrelationId } from '@northlane/shared';
+import { InventoryGatewayService } from '../inventory/inventory.gateway-service';
 import { CatalogGatewayService } from '../products/catalog.gateway-service';
-import { CreateProductRequestDto, ListProductsQueryDto, UpdateProductRequestDto } from '../products/products.dto';
+import {
+  AdjustProductStockRequestDto,
+  CreateProductRequestDto,
+  ListProductsQueryDto,
+  UpdateProductRequestDto,
+} from '../products/products.dto';
 import { AdminGuard } from '../security/admin.guard';
 import { AuthenticatedRequest } from '../security/authenticated-request';
 import { JwtAuthGuard } from '../security/jwt-auth.guard';
@@ -10,7 +16,10 @@ import { JwtAuthGuard } from '../security/jwt-auth.guard';
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly catalogGatewayService: CatalogGatewayService) {}
+  constructor(
+    private readonly catalogGatewayService: CatalogGatewayService,
+    private readonly inventoryGatewayService: InventoryGatewayService,
+  ) {}
 
   @Get('products')
   listProducts(
@@ -32,5 +41,14 @@ export class AdminController {
     @Req() request: AuthenticatedRequest,
   ): Promise<ProductDto> {
     return this.catalogGatewayService.updateProduct(id, body, getCorrelationId(request));
+  }
+
+  @Patch('products/:id/stock')
+  adjustProductStock(
+    @Body() body: AdjustProductStockRequestDto,
+    @Param('id') id: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<InventoryItemDto> {
+    return this.inventoryGatewayService.adjustProductStock(id, body, getCorrelationId(request));
   }
 }
