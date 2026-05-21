@@ -15,15 +15,15 @@ export type MessageEnvelope<TPayload = unknown, TType extends string = string> =
   version: number;
 }>;
 
-export type BaseCommand<TPayload = unknown, TType extends CommandRoutingKey = CommandRoutingKey> = MessageEnvelope<
-  TPayload,
-  TType
->;
+export type BaseCommand<
+  TPayload = unknown,
+  TType extends CommandRoutingKey = CommandRoutingKey,
+> = MessageEnvelope<TPayload, TType>;
 
-export type BaseEvent<TPayload = unknown, TType extends EventRoutingKey = EventRoutingKey> = MessageEnvelope<
-  TPayload,
-  TType
->;
+export type BaseEvent<
+  TPayload = unknown,
+  TType extends EventRoutingKey = EventRoutingKey,
+> = MessageEnvelope<TPayload, TType>;
 
 export type RegisterUserCommandPayload = Readonly<{
   email: string;
@@ -42,13 +42,19 @@ export type LoginUserCommandPayload = Readonly<{
   password: string;
 }>;
 
-export type LoginUserCommand = BaseCommand<LoginUserCommandPayload, typeof ROUTING_KEYS.authCommandLogin>;
+export type LoginUserCommand = BaseCommand<
+  LoginUserCommandPayload,
+  typeof ROUTING_KEYS.authCommandLogin
+>;
 
 export type RefreshTokenCommandPayload = Readonly<{
   refreshToken: string;
 }>;
 
-export type RefreshTokenCommand = BaseCommand<RefreshTokenCommandPayload, typeof ROUTING_KEYS.authCommandRefresh>;
+export type RefreshTokenCommand = BaseCommand<
+  RefreshTokenCommandPayload,
+  typeof ROUTING_KEYS.authCommandRefresh
+>;
 
 export type UserRegisteredEventPayload = Readonly<{
   email: string;
@@ -73,7 +79,10 @@ export type GetProductCommandPayload =
       slug: string;
     }>;
 
-export type GetProductCommand = BaseCommand<GetProductCommandPayload, typeof ROUTING_KEYS.catalogCommandGetProduct>;
+export type GetProductCommand = BaseCommand<
+  GetProductCommandPayload,
+  typeof ROUTING_KEYS.catalogCommandGetProduct
+>;
 
 export type ProductGenderTarget = 'KIDS' | 'MEN' | 'UNISEX' | 'WOMEN';
 
@@ -349,7 +358,10 @@ export type GetCartCommandPayload = Readonly<{
   userId: string;
 }>;
 
-export type GetCartCommand = BaseCommand<GetCartCommandPayload, typeof ROUTING_KEYS.cartCommandGetCart>;
+export type GetCartCommand = BaseCommand<
+  GetCartCommandPayload,
+  typeof ROUTING_KEYS.cartCommandGetCart
+>;
 
 export type AddCartItemCommandPayload = Readonly<{
   productId: string;
@@ -358,7 +370,10 @@ export type AddCartItemCommandPayload = Readonly<{
   variantId: string;
 }>;
 
-export type AddCartItemCommand = BaseCommand<AddCartItemCommandPayload, typeof ROUTING_KEYS.cartCommandAddItem>;
+export type AddCartItemCommand = BaseCommand<
+  AddCartItemCommandPayload,
+  typeof ROUTING_KEYS.cartCommandAddItem
+>;
 
 export type UpdateCartItemCommandPayload = Readonly<{
   itemId: string;
@@ -385,7 +400,10 @@ export type ClearCartCommandPayload = Readonly<{
   userId: string;
 }>;
 
-export type ClearCartCommand = BaseCommand<ClearCartCommandPayload, typeof ROUTING_KEYS.cartCommandClearCart>;
+export type ClearCartCommand = BaseCommand<
+  ClearCartCommandPayload,
+  typeof ROUTING_KEYS.cartCommandClearCart
+>;
 
 export type CartCommand =
   | AddCartItemCommand
@@ -395,15 +413,140 @@ export type CartCommand =
   | UpdateCartItemCommand;
 
 export type CreateOrderCommandPayload = Readonly<{
-  cartId: string;
+  billingAddressSnapshot?: unknown;
+  cartId?: string;
   idempotencyKey: string;
-  shippingAddressId: string;
+  shippingAddressId?: string;
+  shippingAddressSnapshot?: unknown;
   userId: string;
 }>;
 
 export type CreateOrderCommand = BaseCommand<
   CreateOrderCommandPayload,
   typeof ROUTING_KEYS.orderCommandCreateOrder
+>;
+
+export type OrderStatus =
+  | 'CANCELLED'
+  | 'CONFIRMED'
+  | 'DELIVERED'
+  | 'FAILED'
+  | 'PAID'
+  | 'PAYMENT_PENDING'
+  | 'PENDING'
+  | 'PREPARING'
+  | 'REFUNDED'
+  | 'SHIPPED'
+  | 'STOCK_RESERVED';
+
+export type OrderItemDto = Readonly<{
+  brand?: string;
+  category?: string;
+  createdAt: string;
+  id: string;
+  productId: string;
+  productImage?: string;
+  productSlug: string;
+  productTitle: string;
+  quantity: number;
+  selectedColor: string;
+  selectedSize: string;
+  sku: string;
+  total: number;
+  unitPrice: number;
+  variantId: string;
+}>;
+
+export type OrderStatusHistoryDto = Readonly<{
+  changedBy?: string;
+  createdAt: string;
+  id: string;
+  reason?: string;
+  status: OrderStatus;
+}>;
+
+export type OrderDto = Readonly<{
+  billingAddressSnapshot?: unknown;
+  createdAt: string;
+  currency: string;
+  discountTotal: number;
+  grandTotal: number;
+  id: string;
+  idempotencyKey: string;
+  items: readonly OrderItemDto[];
+  orderNumber: string;
+  paymentId?: string;
+  paymentStatus?: string;
+  shippingAddressSnapshot?: unknown;
+  shippingCost: number;
+  status: OrderStatus;
+  statusHistory: readonly OrderStatusHistoryDto[];
+  subtotal: number;
+  taxTotal: number;
+  updatedAt: string;
+  userId: string;
+}>;
+
+export type ListOrdersCommandPayload = Readonly<{
+  includeAll?: boolean;
+  userId?: string;
+}>;
+
+export type ListOrdersCommand = BaseCommand<
+  ListOrdersCommandPayload,
+  typeof ROUTING_KEYS.orderCommandListOrders
+>;
+
+export type GetOrderCommandPayload = Readonly<{
+  includeAll?: boolean;
+  orderId: string;
+  userId?: string;
+}>;
+
+export type GetOrderCommand = BaseCommand<
+  GetOrderCommandPayload,
+  typeof ROUTING_KEYS.orderCommandGetOrder
+>;
+
+export type UpdateOrderStatusCommandPayload = Readonly<{
+  changedBy?: string;
+  orderId: string;
+  reason?: string;
+  status: OrderStatus;
+}>;
+
+export type UpdateOrderStatusCommand = BaseCommand<
+  UpdateOrderStatusCommandPayload,
+  typeof ROUTING_KEYS.orderCommandUpdateStatus
+>;
+
+export type OrderCreatedEventPayload = Readonly<{
+  grandTotal: number;
+  orderId: string;
+  orderNumber: string;
+  userId: string;
+}>;
+
+export type OrderCreatedEvent = BaseEvent<
+  OrderCreatedEventPayload,
+  typeof ROUTING_KEYS.orderEventOrderCreated
+>;
+
+export type OrderStatusChangedEventPayload = Readonly<{
+  orderId: string;
+  orderNumber: string;
+  status: OrderStatus;
+  userId: string;
+}>;
+
+export type OrderStatusChangedEvent = BaseEvent<
+  OrderStatusChangedEventPayload,
+  typeof ROUTING_KEYS.orderEventOrderStatusChanged
+>;
+
+export type OrderCancelledEvent = BaseEvent<
+  OrderStatusChangedEventPayload,
+  typeof ROUTING_KEYS.orderEventOrderCancelled
 >;
 
 export type ReserveStockItemPayload = Readonly<{
@@ -665,7 +808,10 @@ export type GetProfileCommandPayload = Readonly<{
   userId: string;
 }>;
 
-export type GetProfileCommand = BaseCommand<GetProfileCommandPayload, typeof ROUTING_KEYS.userCommandGetProfile>;
+export type GetProfileCommand = BaseCommand<
+  GetProfileCommandPayload,
+  typeof ROUTING_KEYS.userCommandGetProfile
+>;
 
 export type UpdateProfileCommandPayload = Readonly<{
   birthDate?: string;
@@ -724,8 +870,10 @@ export type InitialCommand =
   | CreateOrderCommand
   | GetCategoriesCommand
   | GetCartCommand
+  | GetOrderCommand
   | GetProductCommand
   | GetProfileCommand
+  | ListOrdersCommand
   | ListProductsCommand
   | LoginUserCommand
   | ListAddressesCommand
@@ -737,10 +885,14 @@ export type InitialCommand =
   | RequestPaymentCommand
   | ReserveStockCommand
   | UpdateCartItemCommand
+  | UpdateOrderStatusCommand
   | UpdateProductCommand
   | UpdateProfileCommand;
 
 export type InitialEvent =
+  | OrderCancelledEvent
+  | OrderCreatedEvent
+  | OrderStatusChangedEvent
   | ProductCreatedEvent
   | ProductUpdatedEvent
   | StockAdjustedEvent
