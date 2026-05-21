@@ -1,6 +1,6 @@
 # Northlane Apparel
 
-Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 7**: it includes the monorepo foundation, local infrastructure, API Gateway, shared contracts, RabbitMQ-backed auth/user/catalog flows and a stock-safe inventory service.
+Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 8**: it includes the monorepo foundation, local infrastructure, API Gateway, shared contracts, RabbitMQ-backed auth/user/catalog/inventory flows and a persistent cart service.
 
 ## Current Scope
 
@@ -15,6 +15,7 @@ Implemented now:
 - User Service with Prisma-owned profiles and addresses, plus `UserRegisteredEvent` consumption to create the initial profile.
 - Catalog Service with Prisma-owned products, variants, images, categories, brands, collections, slugs, SEO fields, filters, search and realistic apparel seed data.
 - Inventory Service with Prisma-owned inventory items, stock reservations, stock movements, row-level locking, reservation expiration, idempotency and stock events.
+- Cart Service with Prisma-owned carts and cart items, product snapshots and catalog validation through RabbitMQ request/reply.
 - Eight NestJS service shells under `services/*`.
 - Prisma schema and migrations for implemented services; placeholders remain for future services.
 - Shared and contracts packages.
@@ -25,7 +26,7 @@ Implemented now:
 Not implemented yet:
 
 - Complete RabbitMQ topology, retries and DLQs.
-- Cart, checkout, orders or payments.
+- Checkout, orders or payments.
 - Complete frontend UI.
 - CI/CD or AWS deployment.
 
@@ -137,7 +138,11 @@ The public HTTP boundary is available under `/api/v1`.
 | `POST /api/v1/admin/products` | Create a product through Catalog Service. Requires ADMIN JWT. |
 | `PATCH /api/v1/admin/products/:id` | Update product merchandising fields. Requires ADMIN JWT. |
 | `PATCH /api/v1/admin/products/:id/stock` | Adjust stock for a product variant through Inventory Service. Requires ADMIN JWT. |
-| `GET /api/v1/cart` | Placeholder module boundary. |
+| `GET /api/v1/cart` | Get the authenticated user's active cart. |
+| `POST /api/v1/cart/items` | Add an item to the authenticated user's cart. |
+| `PATCH /api/v1/cart/items/:itemId` | Update cart item quantity. |
+| `DELETE /api/v1/cart/items/:itemId` | Remove a cart item. |
+| `DELETE /api/v1/cart` | Clear the active cart. |
 | `GET /api/v1/checkout` | Placeholder module boundary. |
 | `GET /api/v1/orders` | Placeholder module boundary. |
 
@@ -167,7 +172,8 @@ npm run prisma:migrate --workspace @northlane/auth-service
 npm run prisma:migrate --workspace @northlane/user-service
 npm run prisma:migrate --workspace @northlane/catalog-service
 npm run prisma:migrate --workspace @northlane/inventory-service
+npm run prisma:migrate --workspace @northlane/cart-service
 npm run seed --workspace @northlane/catalog-service
 ```
 
-RabbitMQ is available locally as infrastructure and is used by the auth/user/catalog/inventory request-reply flow plus implemented domain events. Full retry policy, DLQs and production-grade topology management are intentionally deferred to a later phase.
+RabbitMQ is available locally as infrastructure and is used by the auth/user/catalog/inventory/cart request-reply flow plus implemented domain events. Full retry policy, DLQs and production-grade topology management are intentionally deferred to a later phase.

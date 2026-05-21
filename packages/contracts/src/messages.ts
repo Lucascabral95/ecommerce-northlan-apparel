@@ -315,6 +315,42 @@ export type ProductUpdatedEvent = BaseEvent<
   typeof ROUTING_KEYS.catalogEventProductUpdated
 >;
 
+export type CartStatus = 'ABANDONED' | 'ACTIVE' | 'CHECKED_OUT';
+
+export type CartItemDto = Readonly<{
+  createdAt: string;
+  id: string;
+  imageSnapshot?: string;
+  productId: string;
+  quantity: number;
+  selectedColor: string;
+  selectedSize: string;
+  sku: string;
+  slugSnapshot: string;
+  titleSnapshot: string;
+  total: number;
+  unitPriceSnapshot: number;
+  updatedAt: string;
+  variantId: string;
+}>;
+
+export type CartDto = Readonly<{
+  createdAt: string;
+  currency: string;
+  id: string;
+  items: readonly CartItemDto[];
+  status: CartStatus;
+  subtotal: number;
+  updatedAt: string;
+  userId: string;
+}>;
+
+export type GetCartCommandPayload = Readonly<{
+  userId: string;
+}>;
+
+export type GetCartCommand = BaseCommand<GetCartCommandPayload, typeof ROUTING_KEYS.cartCommandGetCart>;
+
 export type AddCartItemCommandPayload = Readonly<{
   productId: string;
   quantity: number;
@@ -323,6 +359,40 @@ export type AddCartItemCommandPayload = Readonly<{
 }>;
 
 export type AddCartItemCommand = BaseCommand<AddCartItemCommandPayload, typeof ROUTING_KEYS.cartCommandAddItem>;
+
+export type UpdateCartItemCommandPayload = Readonly<{
+  itemId: string;
+  quantity: number;
+  userId: string;
+}>;
+
+export type UpdateCartItemCommand = BaseCommand<
+  UpdateCartItemCommandPayload,
+  typeof ROUTING_KEYS.cartCommandUpdateItem
+>;
+
+export type RemoveCartItemCommandPayload = Readonly<{
+  itemId: string;
+  userId: string;
+}>;
+
+export type RemoveCartItemCommand = BaseCommand<
+  RemoveCartItemCommandPayload,
+  typeof ROUTING_KEYS.cartCommandRemoveItem
+>;
+
+export type ClearCartCommandPayload = Readonly<{
+  userId: string;
+}>;
+
+export type ClearCartCommand = BaseCommand<ClearCartCommandPayload, typeof ROUTING_KEYS.cartCommandClearCart>;
+
+export type CartCommand =
+  | AddCartItemCommand
+  | ClearCartCommand
+  | GetCartCommand
+  | RemoveCartItemCommand
+  | UpdateCartItemCommand;
 
 export type CreateOrderCommandPayload = Readonly<{
   cartId: string;
@@ -648,10 +718,12 @@ export type CreateAddressCommand = BaseCommand<
 export type InitialCommand =
   | AddCartItemCommand
   | AdjustStockCommand
+  | ClearCartCommand
   | ConfirmStockReservationCommand
   | CreateProductCommand
   | CreateOrderCommand
   | GetCategoriesCommand
+  | GetCartCommand
   | GetProductCommand
   | GetProfileCommand
   | ListProductsCommand
@@ -661,8 +733,10 @@ export type InitialCommand =
   | RegisterUserCommand
   | CreateAddressCommand
   | ReleaseStockReservationCommand
+  | RemoveCartItemCommand
   | RequestPaymentCommand
   | ReserveStockCommand
+  | UpdateCartItemCommand
   | UpdateProductCommand
   | UpdateProfileCommand;
 
