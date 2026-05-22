@@ -11,7 +11,8 @@
     "prisma:generate": "node ../../scripts/prisma-generate.mjs prisma/schema.prisma CATALOG_DATABASE_URL postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=catalog_service",
     "prisma:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
     "seed": "npm run prisma:generate && tsx src/seed/seed.ts",
-    "test": "vitest run --passWithNoTests"
+    "start": "node dist/main.js",
+    "test": "vitest run --passWithNoTests --exclude dist/**"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.21",

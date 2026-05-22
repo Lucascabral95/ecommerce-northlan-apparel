@@ -1,0 +1,57 @@
+import process from 'node:process';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+const repoRoot = resolve(import.meta.dirname, '..', '..');
+
+const { PrismaClient: CatalogPrismaClient } = await import(
+  pathToFileURL(
+    resolve(repoRoot, 'services', 'catalog-service', 'src', 'generated', 'prisma', 'index.js'),
+  ).href,
+);
+const { PrismaClient: InventoryPrismaClient } = await import(
+  pathToFileURL(
+    resolve(repoRoot, 'services', 'inventory-service', 'src', 'generated', 'prisma', 'index.js'),
+  ).href,
+);
+
+const catalogPrisma = new CatalogPrismaClient();
+const inventoryPrisma = new InventoryPrismaClient();
+
+try {
+  const variants = await catalogPrisma.productVariant.findMany({
+    select: {
+      id: true,
+      isActive: true,
+      productId: true,
+      reservedStock: true,
+      sku: true,
+      stock: true,
+    },
+    where: {
+      isActive: true,
+      product: {
+        isActive: true,
+      },
+    },
+  });
+
+  if (variants.length === 0) {
+    throw new Error('Catalog seed did not produce active variants for inventory bootstrap.');
+  }
+
+  await inventoryPrisma.inventoryItem.createMany({
+    data: variants.map((variant) => ({
+      isActive: variant.isActive,
+      productId: variant.productId,
+      reservedStock: variant.reservedStock,
+      sku: variant.sku,
+      stockOnHand: variant.stock,
+      variantId: variant.id,
+    })),
+  });
+
+  process.stdout.write(`Bootstrapped ${variants.length} inventory items from seeded catalog variants.\n`);
+} finally {
+  await Promise.all([catalogPrisma.$disconnect(), inventoryPrisma.$disconnect()]);
+}

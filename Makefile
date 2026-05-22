@@ -1,4 +1,4 @@
-.PHONY: install dev up down logs build lint test clean
+.PHONY: install dev up down logs build lint test test-e2e test-e2e-live clean
 
 install:
 	npm install
@@ -17,6 +17,12 @@ logs:
 
 test:
 	npm test
+
+test-e2e:
+	npm run test:e2e
+
+test-e2e-live:
+	npm run test:e2e:live
 
 lint:
 	npm run lint

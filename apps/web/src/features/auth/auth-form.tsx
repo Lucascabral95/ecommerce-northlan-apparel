@@ -5,25 +5,11 @@ import { useMutation } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 import { Button } from '../../shared/ui/button';
 import { useToastStore } from '../../shared/ui/toast';
 import { login, register } from './auth-api';
 import { useAuthStore } from './auth-store';
-
-const loginSchema = z.object({
-  email: z.email('Use a valid email.'),
-  password: z.string().min(1, 'Password is required.'),
-});
-
-const registerSchema = loginSchema.extend({
-  firstName: z.string().min(2, 'First name is required.').optional().or(z.literal('')),
-  lastName: z.string().optional(),
-  password: z.string().min(8, 'Use at least 8 characters.'),
-});
-
-type LoginValues = z.infer<typeof loginSchema>;
-type RegisterValues = z.infer<typeof registerSchema>;
+import { loginSchema, registerSchema, type LoginValues, type RegisterValues } from './auth-validation';
 
 export function AuthForm({ mode }: Readonly<{ mode: 'login' | 'register' }>) {
   const router = useRouter();

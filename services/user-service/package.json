@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "prisma:generate": "node ../../scripts/prisma-generate.mjs prisma/schema.prisma USER_DATABASE_URL postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=user_service",
     "prisma:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
-    "test": "vitest run --passWithNoTests"
+    "start": "node dist/main.js",
+    "test": "vitest run --passWithNoTests --exclude dist/**"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.21",

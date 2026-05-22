@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "prisma:generate": "node ../../scripts/prisma-generate.mjs prisma/schema.prisma PAYMENT_DATABASE_URL postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=payment_service",
     "prisma:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
+    "start": "node dist/main.js",
     "test": "npm run prisma:generate && vitest run --passWithNoTests --exclude dist/**"
   },
   "dependencies": {

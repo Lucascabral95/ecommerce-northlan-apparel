@@ -3,7 +3,6 @@ name: northlane-apparel
 services:
   rabbitmq:
     image: rabbitmq:3.13-management
-    container_name: northlane-rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-northlane}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-northlane}
@@ -22,7 +21,6 @@ services:
 
   postgres:
     image: postgres:16-alpine
-    container_name: northlane-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-northlane}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-northlane}
@@ -41,7 +39,6 @@ services:
 
   redis:
     image: redis:7.4-alpine
-    container_name: northlane-redis
     command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "${REDIS_PORT:-6379}:6379"
