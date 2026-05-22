@@ -5,6 +5,7 @@
     "incremental": true,
     "isolatedModules": true,
     "jsx": "preserve",
+    "lib": ["DOM", "DOM.Iterable", "ES2023"],
     "module": "ESNext",
     "noEmit": true,
     "plugins": [

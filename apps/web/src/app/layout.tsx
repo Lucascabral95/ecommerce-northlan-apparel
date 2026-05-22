@@ -1,15 +1,30 @@
 import type { Metadata } from 'next';
+import { Footer } from '../shared/ui/footer';
+import { Header } from '../shared/ui/header';
+import { AppProviders } from './providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Northlane Apparel',
-  description: 'Foundation for a premium event-driven apparel e-commerce platform.',
+  title: {
+    default: 'Northlane Apparel',
+    template: '%s | Northlane Apparel',
+  },
+  description:
+    'Premium apparel commerce powered by Northlane Apparel product stories and a resilient event-driven checkout.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AppProviders>
+          <div className="site-frame">
+            <Header />
+            <main>{children}</main>
+            <Footer />
+          </div>
+        </AppProviders>
+      </body>
     </html>
   );
 }
