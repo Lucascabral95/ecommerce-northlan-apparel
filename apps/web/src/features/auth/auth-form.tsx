@@ -5,6 +5,7 @@ import { useMutation } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
+import { ApiError } from '../../shared/api/client';
 import { Button } from '../../shared/ui/button';
 import { useToastStore } from '../../shared/ui/toast';
 import { login, register } from './auth-api';
@@ -29,7 +30,7 @@ export function AuthForm({ mode }: Readonly<{ mode: 'login' | 'register' }>) {
   const mutation = useMutation({
     mutationFn: (values: LoginValues | RegisterValues) =>
       mode === 'login' ? login(values) : register(values),
-    onError: () => pushToast('Authentication failed. Check the form and retry.', 'error'),
+    onError: (error) => pushToast(resolveAuthErrorMessage(error), 'error'),
     onSuccess: (response) => {
       setSession(response);
       pushToast(mode === 'login' ? 'Welcome back.' : 'Account created.');
@@ -91,6 +92,14 @@ export function AuthForm({ mode }: Readonly<{ mode: 'login' | 'register' }>) {
       </p>
     </form>
   );
+}
+
+function resolveAuthErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.status < 500) {
+    return error.message;
+  }
+
+  return 'Authentication failed. Check the Gateway and service logs before retrying.';
 }
 
 function resolveNextRoute(next: string | null) {

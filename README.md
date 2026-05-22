@@ -1,6 +1,6 @@
 # Northlane Apparel
 
-Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 15**: it includes the monorepo foundation, local infrastructure, API Gateway, RabbitMQ-backed domain services, checkout saga wiring, customer and admin frontends, critical automated tests, and a live browser E2E harness against Docker-backed infrastructure.
+Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 16**: it includes the monorepo foundation, local infrastructure, API Gateway, RabbitMQ-backed domain services, checkout saga wiring, customer and admin frontends, critical automated tests, a GitHub Actions CI workflow, and a live browser E2E harness against Docker-backed infrastructure.
 
 ## Current Scope
 
@@ -27,12 +27,13 @@ Implemented now:
 - Prisma schema and migrations for implemented services; placeholders remain for future services.
 - Shared and contracts packages.
 - Local Docker Compose infrastructure for RabbitMQ, PostgreSQL and Redis.
+- GitHub Actions CI for lint, typecheck, tests, build, Prisma generation, migration validation and Docker Compose configuration checks.
 - Initial Terraform directory without cloud infrastructure.
 - Root Makefile with initial local commands.
 
 Not implemented yet:
 
-- CI/CD or AWS deployment.
+- CD or AWS deployment.
 
 ## Target Architecture
 
@@ -87,7 +88,11 @@ docs/
 ```bash
 make install
 make dev
+make images
+make infra-up
+make bootstrap
 make up
+make start
 make down
 make logs
 make build
@@ -98,6 +103,27 @@ make test-e2e-live
 make clean
 ```
 
+`make up` now builds and starts the full local platform through Docker Compose:
+
+- RabbitMQ
+- PostgreSQL
+- Redis
+- Auth, User, Catalog, Inventory, Cart, Order, Payment and Notification services
+- API Gateway
+- Next.js storefront
+
+`make up` is the safe full-stack command. It builds the shared backend and web images, prepares the Docker database through bootstrap, then starts the application containers:
+
+```bash
+make up
+```
+
+`make bootstrap` remains available when you only need Prisma migrations, catalog seed and inventory synchronization. For faster restarts after the Docker volumes are already prepared, use:
+
+```bash
+make start
+```
+
 Equivalent npm commands:
 
 ```bash
@@ -105,9 +131,12 @@ npm install
 npm run dev
 npm run build
 npm run lint
+npm run prisma:generate
+npm run prisma:migrate:all
 npm test
 npm run test:e2e
 npm run test:e2e:live
+npm run typecheck
 npm run clean
 ```
 
@@ -161,13 +190,56 @@ That command:
 
 Artifacts and process logs are written to `tmp/e2e-live`. The default browser channel is `msedge` to avoid downloading Chromium on Windows. If Edge is unavailable, install a Playwright browser manually and override `PLAYWRIGHT_BROWSER_CHANNEL`.
 
+## CI
+
+GitHub Actions validates the monorepo through `.github/workflows/ci.yml` on pull requests to `main`, pushes to `main` and manual dispatches.
+
+The pipeline checks:
+
+- dependency installation with `npm ci`
+- Prisma client generation across implemented services
+- lint and typecheck across apps, services and shared packages
+- unit and service tests through `npm test`
+- checkout saga smoke coverage through `npm run test:e2e`
+- full monorepo build through `npm run build`
+- Docker Compose configuration validity
+
+Local parity commands:
+
+```bash
+npm run prisma:generate
+npm run lint
+npm run typecheck
+npm test
+npm run build
+docker compose config --quiet
+```
+
+For database-backed CI parity, start PostgreSQL locally and apply the service migrations:
+
+```bash
+make infra-up
+npm run prisma:migrate:all
+npm run test:e2e
+make down
+```
+
 ## Local Infrastructure
 
-`make up` starts the local infrastructure required by later event-driven phases.
+`make up` builds one shared backend image, a standalone web image, bootstraps the Docker database and starts the complete Docker-based local platform. `make start` skips bootstrap for prepared volumes. `make dev` remains available if you want to run the monorepo directly on the host with Turbo.
 
 | Component              | Local URL / Port                      | Default credentials     |
 | ---------------------- | ------------------------------------- | ----------------------- |
+| Web storefront         | `http://localhost:3000`               | none                    |
 | API Gateway            | `http://localhost:4000/api/v1/health` | none                    |
+| Auth Service           | `http://localhost:4101/health`        | none                    |
+| User Service           | `http://localhost:4102/health`        | none                    |
+| Catalog Service        | `http://localhost:4103/health`        | none                    |
+| Inventory Service      | `http://localhost:4104/health`        | none                    |
+| Cart Service           | `http://localhost:4105/health`        | none                    |
+| Order Service          | `http://localhost:4106/health`        | none                    |
+| Payment Service        | `http://localhost:4107/health`        | none                    |
+| Notification Service   | `http://localhost:4108/health`        | none                    |
 | RabbitMQ AMQP          | `localhost:5672`                      | `northlane / northlane` |
 | RabbitMQ Management UI | `http://localhost:15672`              | `northlane / northlane` |
 | PostgreSQL             | `localhost:5432`                      | `northlane / northlane` |

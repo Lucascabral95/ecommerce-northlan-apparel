@@ -1,7 +1,34 @@
 name: northlane-apparel
 
+x-node-service: &node-service
+  networks:
+    - northlane
+  restart: unless-stopped
+
+x-backend-service: &backend-service
+  <<: *node-service
+  image: northlane-apparel-backend:local
+
+x-platform-env: &platform-env
+  NODE_ENV: ${NODE_ENV:-production}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-replace-with-a-strong-local-secret}
+  JWT_ACCESS_EXPIRES_IN_SECONDS: ${JWT_ACCESS_EXPIRES_IN_SECONDS:-900}
+  JWT_REFRESH_TOKEN_EXPIRES_IN_DAYS: ${JWT_REFRESH_TOKEN_EXPIRES_IN_DAYS:-30}
+  BCRYPT_SALT_ROUNDS: ${BCRYPT_SALT_ROUNDS:-12}
+  API_CORS_ORIGIN: ${API_CORS_ORIGIN:-http://localhost:3000}
+  API_RATE_LIMIT_TTL_MS: ${API_RATE_LIMIT_TTL_MS:-60000}
+  API_RATE_LIMIT_LIMIT: ${API_RATE_LIMIT_LIMIT:-100}
+  INVENTORY_RESERVATION_TTL_SECONDS: ${INVENTORY_RESERVATION_TTL_SECONDS:-900}
+  PAYMENT_PROVIDER_MODE: ${PAYMENT_PROVIDER_MODE:-MOCK}
+  PAYMENT_MOCK_FAILURE_AMOUNT: ${PAYMENT_MOCK_FAILURE_AMOUNT:-13.37}
+  PAYMENT_MOCK_FORCE_FAILURE: ${PAYMENT_MOCK_FORCE_FAILURE:-false}
+  RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-northlane}:${RABBITMQ_DEFAULT_PASS:-northlane}@rabbitmq:5672
+  REDIS_URL: redis://redis:6379
+
 services:
   rabbitmq:
+    <<: *node-service
     image: rabbitmq:3.13-management
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-northlane}
@@ -15,11 +42,10 @@ services:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 5
-    networks:
-      - northlane
+      retries: 10
 
   postgres:
+    <<: *node-service
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-northlane}
@@ -33,11 +59,10 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-northlane} -d ${POSTGRES_DB:-northlane_platform}"]
       interval: 10s
       timeout: 5s
-      retries: 5
-    networks:
-      - northlane
+      retries: 10
 
   redis:
+    <<: *node-service
     image: redis:7.4-alpine
     command: ["redis-server", "--appendonly", "yes"]
     ports:
@@ -48,9 +73,267 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+
+  backend-runtime:
+    profiles: ["build"]
+    image: northlane-apparel-backend:local
+    build:
+      context: .
+      dockerfile: infra/docker/backend.Dockerfile
+    command: ["node", "--version"]
     networks:
       - northlane
+
+  bootstrap:
+    profiles: ["bootstrap"]
+    image: northlane-apparel-bootstrap:local
+    networks:
+      - northlane
+    restart: "no"
+    build:
+      context: .
+      dockerfile: infra/docker/bootstrap.Dockerfile
+    environment:
+      <<: *platform-env
+      AUTH_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=auth_service
+      USER_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=user_service
+      CATALOG_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=catalog_service
+      INVENTORY_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=inventory_service
+      CART_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=cart_service
+      ORDER_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=order_service
+      PAYMENT_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=payment_service
+      NOTIFICATION_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=notification_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  auth-service:
+    <<: *backend-service
+    command: ["node", "services/auth-service/dist/main.js"]
+    environment:
+      <<: *platform-env
+      AUTH_SERVICE_PORT: ${AUTH_SERVICE_PORT:-4101}
+      AUTH_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=auth_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "${AUTH_SERVICE_PORT:-4101}:${AUTH_SERVICE_PORT:-4101}"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:' + process.env.AUTH_SERVICE_PORT + '/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  user-service:
+    <<: *backend-service
+    command: ["node", "services/user-service/dist/main.js"]
+    environment:
+      <<: *platform-env
+      USER_SERVICE_PORT: ${USER_SERVICE_PORT:-4102}
+      USER_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=user_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "${USER_SERVICE_PORT:-4102}:${USER_SERVICE_PORT:-4102}"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:' + process.env.USER_SERVICE_PORT + '/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  catalog-service:
+    <<: *backend-service
+    command: ["node", "services/catalog-service/dist/main.js"]
+    environment:
+      <<: *platform-env
+      CATALOG_SERVICE_PORT: ${CATALOG_SERVICE_PORT:-4103}
+      CATALOG_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=catalog_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "${CATALOG_SERVICE_PORT:-4103}:${CATALOG_SERVICE_PORT:-4103}"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:' + process.env.CATALOG_SERVICE_PORT + '/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  inventory-service:
+    <<: *backend-service
+    command: ["node", "services/inventory-service/dist/main.js"]
+    environment:
+      <<: *platform-env
+      INVENTORY_SERVICE_PORT: ${INVENTORY_SERVICE_PORT:-4104}
+      INVENTORY_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=inventory_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "${INVENTORY_SERVICE_PORT:-4104}:${INVENTORY_SERVICE_PORT:-4104}"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:' + process.env.INVENTORY_SERVICE_PORT + '/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  cart-service:
+    <<: *backend-service
+    command: ["node", "services/cart-service/dist/main.js"]
+    environment:
+      <<: *platform-env
+      CART_SERVICE_PORT: ${CART_SERVICE_PORT:-4105}
+      CART_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=cart_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "${CART_SERVICE_PORT:-4105}:${CART_SERVICE_PORT:-4105}"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:' + process.env.CART_SERVICE_PORT + '/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  order-service:
+    <<: *backend-service
+    command: ["node", "services/order-service/dist/main.js"]
+    environment:
+      <<: *platform-env
+      ORDER_SERVICE_PORT: ${ORDER_SERVICE_PORT:-4106}
+      ORDER_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=order_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "${ORDER_SERVICE_PORT:-4106}:${ORDER_SERVICE_PORT:-4106}"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:' + process.env.ORDER_SERVICE_PORT + '/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  payment-service:
+    <<: *backend-service
+    command: ["node", "services/payment-service/dist/main.js"]
+    environment:
+      <<: *platform-env
+      PAYMENT_SERVICE_PORT: ${PAYMENT_SERVICE_PORT:-4107}
+      PAYMENT_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=payment_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "${PAYMENT_SERVICE_PORT:-4107}:${PAYMENT_SERVICE_PORT:-4107}"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:' + process.env.PAYMENT_SERVICE_PORT + '/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  notification-service:
+    <<: *backend-service
+    command: ["node", "services/notification-service/dist/main.js"]
+    environment:
+      <<: *platform-env
+      NOTIFICATION_SERVICE_PORT: ${NOTIFICATION_SERVICE_PORT:-4108}
+      NOTIFICATION_DATABASE_URL: postgresql://${POSTGRES_USER:-northlane}:${POSTGRES_PASSWORD:-northlane}@postgres:5432/${POSTGRES_DB:-northlane_platform}?schema=notification_service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-4108}:${NOTIFICATION_SERVICE_PORT:-4108}"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:' + process.env.NOTIFICATION_SERVICE_PORT + '/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  api-gateway:
+    <<: *backend-service
+    command: ["node", "apps/api-gateway/dist/main.js"]
+    environment:
+      <<: *platform-env
+      API_GATEWAY_PORT: ${API_GATEWAY_PORT:-4000}
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+      cart-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "${API_GATEWAY_PORT:-4000}:${API_GATEWAY_PORT:-4000}"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:' + process.env.API_GATEWAY_PORT + '/api/v1/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 25s
+
+  web:
+    <<: *node-service
+    image: northlane-apparel-web:local
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_GATEWAY_URL: ${NEXT_PUBLIC_API_GATEWAY_URL:-http://localhost:4000/api/v1}
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_API_GATEWAY_URL: ${NEXT_PUBLIC_API_GATEWAY_URL:-http://localhost:4000/api/v1}
+      INTERNAL_API_GATEWAY_URL: http://api-gateway:${API_GATEWAY_PORT:-4000}/api/v1
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/login').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
 
 volumes:
   rabbitmq_data:

@@ -8,7 +8,8 @@
     "dev": "next dev --port 3000",
     "lint": "eslint .",
     "start": "next start",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

@@ -9,6 +9,7 @@
     "clean": "node ../../scripts/clean.mjs",
     "dev": "tsc -p tsconfig.json --watch",
     "lint": "eslint .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

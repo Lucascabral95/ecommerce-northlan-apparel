@@ -40,18 +40,60 @@ try {
     throw new Error('Catalog seed did not produce active variants for inventory bootstrap.');
   }
 
-  await inventoryPrisma.inventoryItem.createMany({
-    data: variants.map((variant) => ({
-      isActive: variant.isActive,
-      productId: variant.productId,
-      reservedStock: variant.reservedStock,
-      sku: variant.sku,
-      stockOnHand: variant.stock,
-      variantId: variant.id,
-    })),
-  });
+  const activeSkus = variants.map((variant) => variant.sku);
+  let deletedCount = 0;
+  let createdCount = 0;
+  let updatedCount = 0;
 
-  process.stdout.write(`Bootstrapped ${variants.length} inventory items from seeded catalog variants.\n`);
+  const deleteResult = await inventoryPrisma.inventoryItem.deleteMany({
+    where: {
+      sku: {
+        notIn: activeSkus,
+      },
+    },
+  });
+  deletedCount = deleteResult.count;
+
+  for (const variant of variants) {
+    const existingItem = await inventoryPrisma.inventoryItem.findFirst({
+      select: { id: true, sku: true, variantId: true },
+      where: {
+        OR: [{ sku: variant.sku }, { variantId: variant.id }],
+      },
+    });
+
+    if (!existingItem) {
+      await inventoryPrisma.inventoryItem.create({
+        data: {
+          isActive: variant.isActive,
+          productId: variant.productId,
+          reservedStock: variant.reservedStock,
+          sku: variant.sku,
+          stockOnHand: variant.stock,
+          variantId: variant.id,
+        },
+      });
+      createdCount += 1;
+      continue;
+    }
+
+    await inventoryPrisma.inventoryItem.update({
+      data: {
+        isActive: variant.isActive,
+        productId: variant.productId,
+        reservedStock: variant.reservedStock,
+        sku: variant.sku,
+        stockOnHand: variant.stock,
+        variantId: variant.id,
+      },
+      where: { id: existingItem.id },
+    });
+    updatedCount += 1;
+  }
+
+  process.stdout.write(
+    `Synchronized ${variants.length} inventory items from seeded catalog variants (${createdCount} created, ${updatedCount} updated, ${deletedCount} deleted).\n`,
+  );
 } finally {
   await Promise.all([catalogPrisma.$disconnect(), inventoryPrisma.$disconnect()]);
 }
