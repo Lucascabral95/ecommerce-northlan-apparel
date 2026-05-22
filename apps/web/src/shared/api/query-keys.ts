@@ -1,4 +1,7 @@
 export const queryKeys = {
+  adminOrders: ['admin', 'orders'] as const,
+  adminProducts: (filters: Record<string, string | undefined> = {}) =>
+    ['admin', 'products', filters] as const,
   addresses: ['addresses'] as const,
   cart: ['cart'] as const,
   categories: ['categories'] as const,
