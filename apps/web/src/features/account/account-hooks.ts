@@ -1,5 +1,6 @@
 'use client';
 
+import type { OrderStatus } from '@northlane/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../shared/api/query-keys';
 import { useToastStore } from '../../shared/ui/toast';
@@ -11,6 +12,14 @@ import {
   listOrders,
   updateProfile,
 } from './account-api';
+
+const TERMINAL_ORDER_STATUSES = new Set<OrderStatus>([
+  'CANCELLED',
+  'CONFIRMED',
+  'DELIVERED',
+  'FAILED',
+  'REFUNDED',
+]);
 
 export function useProfile() {
   return useQuery({
@@ -37,6 +46,10 @@ export function useOrder(id: string) {
   return useQuery({
     queryFn: () => getOrder(id),
     queryKey: queryKeys.order(id),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status && TERMINAL_ORDER_STATUSES.has(status) ? false : 2_000;
+    },
   });
 }
 

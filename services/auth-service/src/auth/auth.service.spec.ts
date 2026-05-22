@@ -105,6 +105,31 @@ describe('AuthService', () => {
       }),
     ).rejects.toThrow('Invalid email or password.');
   });
+
+  it('logs in a registered user and issues a new refresh token', async () => {
+    const repository = new InMemoryAuthRepository();
+    const service = createAuthService(repository, []);
+
+    await repository.createUserCredential({
+      email: 'buyer@northlane.test',
+      passwordHash: 'hashed:correct-password',
+      role: 'USER',
+      userId: 'buyer-1',
+    });
+
+    const session = await service.login({
+      email: 'BUYER@northlane.test',
+      password: 'correct-password',
+    });
+
+    expect(session.user).toEqual({
+      email: 'buyer@northlane.test',
+      role: 'USER',
+      userId: 'buyer-1',
+    });
+    expect(session.tokens.accessToken).toBe('access:buyer-1');
+    expect(repository.refreshTokens).toHaveProperty('size', 1);
+  });
 });
 
 function createAuthService(repository: AuthRepository, publishedEvents: unknown[]): AuthService {

@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "prisma:generate": "node ../../scripts/prisma-generate.mjs prisma/schema.prisma ORDER_DATABASE_URL postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=order_service",
     "prisma:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
-    "test": "npm run prisma:generate && vitest run --passWithNoTests --exclude dist/**"
+    "start": "node dist/main.js",
+    "test": "npm run prisma:generate && vitest run --passWithNoTests --exclude dist/**",
+    "test:e2e": "npm run prisma:generate && vitest run --passWithNoTests --exclude dist/** src/order/order.service.spec.ts -t \"confirms the order|cancels the order\""
   },
   "dependencies": {
     "@nestjs/common": "^11.1.21",

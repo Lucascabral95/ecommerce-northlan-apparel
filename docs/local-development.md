@@ -1,6 +1,6 @@
 # Local Development
 
-This document covers local infrastructure, the API Gateway foundation, the Phase 5 auth/user flow, the Phase 6 catalog flow, the Phase 7 inventory flow, the Phase 8 cart flow, the Phase 9 order flow, the Phase 10 MOCK payment flow and the Phase 11 notification flow. Order reaction to payment events and cart finalization are still intentionally out of scope.
+This document covers local infrastructure, the implemented service flows and the live browser E2E harness for the Northlane checkout path.
 
 ## Requirements
 
@@ -58,6 +58,7 @@ make up
 make dev
 make logs
 make down
+make test-e2e-live
 ```
 
 `make up` starts:
@@ -83,6 +84,53 @@ make down
 | Redis                       | `localhost:6379`                        |
 
 RabbitMQ credentials default to `northlane / northlane`.
+
+## Live E2E
+
+The repository includes a real browser E2E harness that uses:
+
+- Docker Compose for `rabbitmq`, `postgres` and `redis`.
+- real NestJS service processes on isolated ports.
+- real Prisma schema resets inside an isolated E2E database.
+- authoritative inventory bootstrap from the seeded catalog variants.
+- Playwright against the Next.js storefront and API Gateway.
+
+Run it with:
+
+```bash
+npm run test:e2e:live
+make test-e2e-live
+```
+
+The harness uses `e2e/live.env`, not your root `.env`, so it does not reuse development ports or the main development database.
+
+Default live E2E ports:
+
+| Service                     | URL                                      |
+| --------------------------- | ---------------------------------------- |
+| Web storefront             | `http://127.0.0.1:3100`                  |
+| API Gateway health         | `http://127.0.0.1:4100/api/v1/health`    |
+| RabbitMQ Management UI     | `http://127.0.0.1:15673`                 |
+| PostgreSQL                 | `127.0.0.1:5434`                         |
+| Redis                      | `127.0.0.1:6381`                         |
+
+The browser test covers:
+
+1. user registration
+2. catalog navigation
+3. product detail and add-to-bag
+4. checkout against the live saga
+5. confirmed order detail
+6. order history persistence
+
+Logs and Playwright artifacts are written to `tmp/e2e-live`.
+
+If the run fails:
+
+1. Inspect `tmp/e2e-live/logs` for the service or command that crashed first.
+2. Set `NORTHLANE_E2E_KEEP_STACK=1` before the command if you need the Docker stack to stay up for manual debugging.
+3. Verify Microsoft Edge is installed, or install a Playwright browser and override `PLAYWRIGHT_BROWSER_CHANNEL`.
+4. If ports are already in use, edit `e2e/live.env` rather than the main `.env`.
 
 ## Database Migrations
 
@@ -165,10 +213,8 @@ The required URLs are `AUTH_DATABASE_URL`, `USER_DATABASE_URL`, `CATALOG_DATABAS
 
 ## Scope Notes
 
-- Full dead-letter queues and retry policies are not implemented yet.
-- Redis is available for later caching/rate-limit/session use cases, but no application code uses it yet.
-- Catalog variant stock fields are historical merchandising data from Phase 6; authoritative reservations and stock movements now belong to Inventory Service.
-- Cart does not reserve stock. Order creation now starts stock reservation, and Payment Service can process the MOCK payment command. Order status updates after payment success/failure remain deferred.
+- Redis is available for later caching and distributed throttling use cases, but application state does not depend on it yet.
+- Catalog variant stock fields remain merchandising snapshots; authoritative reservations and stock movements belong to Inventory Service.
 - Notification Service does not send real email; integration with SES or another provider remains deferred.
-- API Gateway rate limiting uses in-memory throttling for now; Redis-backed distributed throttling is intentionally deferred.
+- API Gateway rate limiting uses in-memory throttling; Redis-backed distributed throttling remains deferred.
 - Prometheus is intentionally deferred until services expose production metrics.

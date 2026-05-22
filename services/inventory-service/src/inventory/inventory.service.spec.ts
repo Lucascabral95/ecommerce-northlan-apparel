@@ -90,6 +90,29 @@ describe('InventoryService', () => {
     expect(prisma.items[0]?.reservedStock).toBe(2);
     expect(rabbitMqClient.routingKeys).toContain('inventory.event.stock_reservation_failed');
   });
+
+  it('confirms reserved stock and records stock movement', async () => {
+    await seedInventory(service, 4);
+    await service.reserveStock(
+      {
+        idempotencyKey: 'idem-order-confirm',
+        items: [{ quantity: 2, sku: 'NLA-TEE-BLK-M', variantId: VARIANT_ID }],
+        orderId: 'order-confirm',
+        userId: 'user-1',
+      },
+      testContext(),
+    );
+
+    const confirmed = await service.confirmStockReservation(
+      { orderId: 'order-confirm' },
+      testContext(),
+    );
+
+    expect(confirmed.status).toBe('CONFIRMED');
+    expect(prisma.items[0]).toMatchObject({ reservedStock: 0, stockOnHand: 2 });
+    expect(prisma.movements).toHaveLength(3);
+    expect(rabbitMqClient.routingKeys).toContain('inventory.event.stock_confirmed');
+  });
 });
 
 async function seedInventory(service: InventoryService, quantity: number): Promise<void> {
