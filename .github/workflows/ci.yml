@@ -1,0 +1,171 @@
+name: ci
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  NEXT_TELEMETRY_DISABLED: "1"
+  NODE_ENV: test
+  LOG_LEVEL: info
+  NEXT_PUBLIC_API_GATEWAY_URL: http://localhost:4000/api/v1
+  API_CORS_ORIGIN: http://localhost:3000
+  API_RATE_LIMIT_TTL_MS: "60000"
+  API_RATE_LIMIT_LIMIT: "100"
+  JWT_ACCESS_SECRET: ci-jwt-secret
+  JWT_ACCESS_EXPIRES_IN_SECONDS: "900"
+  JWT_REFRESH_TOKEN_EXPIRES_IN_DAYS: "30"
+  BCRYPT_SALT_ROUNDS: "10"
+  PAYMENT_PROVIDER_MODE: MOCK
+  PAYMENT_MOCK_FAILURE_AMOUNT: "13.37"
+  PAYMENT_MOCK_FORCE_FAILURE: "false"
+  RABBITMQ_URL: amqp://northlane:northlane@localhost:5672
+  REDIS_URL: redis://localhost:6379
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache: npm
+          cache-dependency-path: package-lock.json
+          node-version: 22.x
+
+      - name: Align npm version with packageManager
+        run: npm install --global npm@11.6.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma clients
+        run: npm run prisma:generate
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run typecheck
+        run: npm run typecheck
+
+      - name: Run unit and service tests
+        run: npm test
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache: npm
+          cache-dependency-path: package-lock.json
+          node-version: 22.x
+
+      - name: Align npm version with packageManager
+        run: npm install --global npm@11.6.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma clients
+        run: npm run prisma:generate
+
+      - name: Build monorepo
+        run: npm run build
+
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: northlane_ci
+          POSTGRES_PASSWORD: northlane
+          POSTGRES_USER: northlane
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U northlane -d northlane_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      POSTGRES_DB: northlane_ci
+      POSTGRES_PASSWORD: northlane
+      POSTGRES_USER: northlane
+      AUTH_DATABASE_URL: postgresql://northlane:northlane@localhost:5432/northlane_ci?schema=auth_service
+      USER_DATABASE_URL: postgresql://northlane:northlane@localhost:5432/northlane_ci?schema=user_service
+      CATALOG_DATABASE_URL: postgresql://northlane:northlane@localhost:5432/northlane_ci?schema=catalog_service
+      INVENTORY_DATABASE_URL: postgresql://northlane:northlane@localhost:5432/northlane_ci?schema=inventory_service
+      CART_DATABASE_URL: postgresql://northlane:northlane@localhost:5432/northlane_ci?schema=cart_service
+      ORDER_DATABASE_URL: postgresql://northlane:northlane@localhost:5432/northlane_ci?schema=order_service
+      PAYMENT_DATABASE_URL: postgresql://northlane:northlane@localhost:5432/northlane_ci?schema=payment_service
+      NOTIFICATION_DATABASE_URL: postgresql://northlane:northlane@localhost:5432/northlane_ci?schema=notification_service
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache: npm
+          cache-dependency-path: package-lock.json
+          node-version: 22.x
+
+      - name: Align npm version with packageManager
+        run: npm install --global npm@11.6.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma clients
+        run: npm run prisma:generate
+
+      - name: Apply Prisma migrations
+        run: npm run prisma:migrate:all
+
+      - name: Run checkout saga smoke tests
+        run: npm run test:e2e
+
+  docker:
+    name: docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose configuration
+        run: docker compose config --quiet
+
+      - name: Build Docker Compose application images
+        run: docker compose build backend-runtime bootstrap web

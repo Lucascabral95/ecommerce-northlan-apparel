@@ -4,7 +4,7 @@ This document covers local infrastructure, the implemented service flows and the
 
 ## Requirements
 
-- Docker Desktop or a compatible Docker Engine.
+- Docker Desktop with Linux containers or a compatible Docker Engine.
 - Docker Compose v2.
 - `make`.
 - Node.js and npm for monorepo commands.
@@ -54,24 +54,54 @@ Default infrastructure values:
 ## Commands
 
 ```bash
+make images
+make infra-up
+make bootstrap
 make up
+make start
 make dev
 make logs
 make down
 make test-e2e-live
 ```
 
-`make up` starts:
+`make up` builds and starts:
 
 - RabbitMQ with Management UI.
 - PostgreSQL with a persistent Docker volume.
 - Redis with append-only persistence.
+- Auth, User, Catalog, Inventory, Cart, Order, Payment and Notification services.
+- API Gateway.
+- Next.js storefront.
+
+`make up` is the complete first-run command:
+
+```bash
+make up
+```
+
+It applies Prisma migrations, seeds the catalog and synchronizes Inventory Service before starting application containers. That keeps registration, catalog and checkout functional on a new Docker volume.
+
+Use the smaller targets when you need control:
+
+```bash
+make infra-up
+make bootstrap
+make start
+```
+
+`make start` skips bootstrap and is the faster restart path once Docker volumes already contain the prepared schemas and seed data.
+
+Docker builds one shared backend image for API Gateway and all NestJS services, plus a standalone Next.js web image. That keeps the microservice containers separate at runtime without storing a separate Node dependency tree for every backend service.
 
 ## Local URLs
 
 | Service                     | URL                                     |
 | --------------------------- | --------------------------------------- |
+| Web storefront              | `http://localhost:3000`                 |
 | API Gateway health          | `http://localhost:4000/api/v1/health`   |
+| Auth Service health         | `http://localhost:4101/health`          |
+| User Service health         | `http://localhost:4102/health`          |
 | Product catalog             | `http://localhost:4000/api/v1/products` |
 | Catalog Service health      | `http://localhost:4103/health`          |
 | Inventory Service health    | `http://localhost:4104/health`          |

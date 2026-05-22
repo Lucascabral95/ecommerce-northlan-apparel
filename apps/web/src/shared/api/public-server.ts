@@ -1,6 +1,9 @@
 import 'server-only';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL ?? 'http://localhost:4000/api/v1';
+const API_BASE_URL =
+  process.env.INTERNAL_API_GATEWAY_URL ??
+  process.env.NEXT_PUBLIC_API_GATEWAY_URL ??
+  'http://localhost:4000/api/v1';
 
 export async function publicServerRequest<TResponse>(path: string): Promise<TResponse> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
