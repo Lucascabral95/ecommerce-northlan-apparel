@@ -11,6 +11,9 @@ import {
 import { RabbitMqClient } from '@northlane/shared';
 import { InventoryService } from './inventory.service';
 
+const RETRY_DELAY_MS = 5_000;
+const MAX_RETRY_ATTEMPTS = 3;
+
 type InventoryCommand =
   | AdjustStockCommand
   | ConfirmStockReservationCommand
@@ -27,8 +30,16 @@ export class InventoryMessageHandlerService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     await this.rabbitMqClient.subscribe<InventoryCommand>(
       {
+        deadLetter: inventoryDeadLetter(),
         exchange: EXCHANGE_NAMES.inventory,
         queue: QUEUE_NAMES.inventoryCommands,
+        retry: {
+          delayMs: RETRY_DELAY_MS,
+          exchange: EXCHANGE_NAMES.inventoryRetry,
+          maxAttempts: MAX_RETRY_ATTEMPTS,
+          queue: QUEUE_NAMES.inventoryRetry,
+          routingKey: 'inventory.command.retry',
+        },
         routingKeys: [
           ROUTING_KEYS.inventoryCommandAdjustStock,
           ROUTING_KEYS.inventoryCommandConfirmStock,
@@ -62,4 +73,12 @@ export class InventoryMessageHandlerService implements OnModuleInit {
       },
     );
   }
+}
+
+function inventoryDeadLetter() {
+  return {
+    exchange: EXCHANGE_NAMES.inventoryDeadLetter,
+    queue: QUEUE_NAMES.inventoryDeadLetters,
+    routingKey: 'inventory.command.failed',
+  };
 }

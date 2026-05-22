@@ -4,6 +4,8 @@ import {
   EXCHANGE_NAMES,
   GetOrderCommand,
   ListOrdersCommand,
+  PaymentFailedEvent,
+  PaymentSucceededEvent,
   QUEUE_NAMES,
   ROUTING_KEYS,
   StockReservationFailedEvent,
@@ -19,6 +21,10 @@ type OrderCommand =
   | ListOrdersCommand
   | UpdateOrderStatusCommand;
 type InventoryReservationEvent = StockReservationFailedEvent | StockReservedEvent;
+type PaymentEvent = PaymentFailedEvent | PaymentSucceededEvent;
+
+const RETRY_DELAY_MS = 5_000;
+const MAX_RETRY_ATTEMPTS = 3;
 
 @Injectable()
 export class OrderMessageHandlerService implements OnModuleInit {
@@ -30,13 +36,22 @@ export class OrderMessageHandlerService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     await this.subscribeToOrderCommands();
     await this.subscribeToInventoryEvents();
+    await this.subscribeToPaymentEvents();
   }
 
   private async subscribeToOrderCommands(): Promise<void> {
     await this.rabbitMqClient.subscribe<OrderCommand>(
       {
+        deadLetter: orderDeadLetter(),
         exchange: EXCHANGE_NAMES.order,
         queue: QUEUE_NAMES.orderCommands,
+        retry: {
+          delayMs: RETRY_DELAY_MS,
+          exchange: EXCHANGE_NAMES.orderRetry,
+          maxAttempts: MAX_RETRY_ATTEMPTS,
+          queue: QUEUE_NAMES.orderCommandRetry,
+          routingKey: 'order.command.retry',
+        },
         routingKeys: [
           ROUTING_KEYS.orderCommandCreateOrder,
           ROUTING_KEYS.orderCommandGetOrder,
@@ -74,8 +89,16 @@ export class OrderMessageHandlerService implements OnModuleInit {
   private async subscribeToInventoryEvents(): Promise<void> {
     await this.rabbitMqClient.subscribe<InventoryReservationEvent>(
       {
+        deadLetter: orderDeadLetter(),
         exchange: EXCHANGE_NAMES.inventory,
-        queue: QUEUE_NAMES.orderEvents,
+        queue: QUEUE_NAMES.orderInventoryEvents,
+        retry: {
+          delayMs: RETRY_DELAY_MS,
+          exchange: EXCHANGE_NAMES.orderRetry,
+          maxAttempts: MAX_RETRY_ATTEMPTS,
+          queue: QUEUE_NAMES.orderInventoryEventRetry,
+          routingKey: 'order.inventory_event.retry',
+        },
         routingKeys: [
           ROUTING_KEYS.inventoryEventStockReservationFailed,
           ROUTING_KEYS.inventoryEventStockReserved,
@@ -101,4 +124,51 @@ export class OrderMessageHandlerService implements OnModuleInit {
       },
     );
   }
+
+  private async subscribeToPaymentEvents(): Promise<void> {
+    await this.rabbitMqClient.subscribe<PaymentEvent>(
+      {
+        deadLetter: orderDeadLetter(),
+        exchange: EXCHANGE_NAMES.payment,
+        queue: QUEUE_NAMES.orderPaymentEvents,
+        retry: {
+          delayMs: RETRY_DELAY_MS,
+          exchange: EXCHANGE_NAMES.orderRetry,
+          maxAttempts: MAX_RETRY_ATTEMPTS,
+          queue: QUEUE_NAMES.orderPaymentEventRetry,
+          routingKey: 'order.payment_event.retry',
+        },
+        routingKeys: [
+          ROUTING_KEYS.paymentEventPaymentFailed,
+          ROUTING_KEYS.paymentEventPaymentSucceeded,
+        ],
+      },
+      async (event) => {
+        const context = {
+          causationId: event.eventId,
+          correlationId: event.correlationId,
+        };
+
+        if (event.type === ROUTING_KEYS.paymentEventPaymentSucceeded) {
+          await this.orderService.handlePaymentSucceeded(event.payload, context);
+          return { handled: true };
+        }
+
+        if (event.type === ROUTING_KEYS.paymentEventPaymentFailed) {
+          await this.orderService.handlePaymentFailed(event.payload, context);
+          return { handled: true };
+        }
+
+        throw new Error('Unsupported payment event.');
+      },
+    );
+  }
+}
+
+function orderDeadLetter() {
+  return {
+    exchange: EXCHANGE_NAMES.orderDeadLetter,
+    queue: QUEUE_NAMES.orderDeadLetters,
+    routingKey: 'order.message.failed',
+  };
 }

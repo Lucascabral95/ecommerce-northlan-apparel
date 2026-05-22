@@ -41,6 +41,13 @@ export type SubscribeOptions = Readonly<{
   }>;
   exchange: string;
   queue: string;
+  retry?: Readonly<{
+    delayMs: number;
+    exchange: string;
+    maxAttempts: number;
+    queue: string;
+    routingKey: string;
+  }>;
   routingKeys: readonly string[];
 }>;
 
@@ -163,6 +170,18 @@ export class RabbitMqClient implements OnModuleDestroy {
         options.deadLetter.routingKey,
       );
     }
+    if (options.retry) {
+      await this.assertExchange(options.retry.exchange);
+      const retryQueue = await channel.assertQueue(options.retry.queue, {
+        arguments: {
+          'x-dead-letter-exchange': options.exchange,
+          'x-dead-letter-routing-key': options.retry.routingKey,
+          'x-message-ttl': options.retry.delayMs,
+        },
+        durable: true,
+      });
+      await channel.bindQueue(retryQueue.queue, options.retry.exchange, options.retry.routingKey);
+    }
 
     const queue = await channel.assertQueue(options.queue, {
       arguments: options.deadLetter
@@ -177,19 +196,23 @@ export class RabbitMqClient implements OnModuleDestroy {
     for (const routingKey of options.routingKeys) {
       await channel.bindQueue(queue.queue, options.exchange, routingKey);
     }
+    if (options.retry) {
+      await channel.bindQueue(queue.queue, options.exchange, options.retry.routingKey);
+    }
 
     await channel.consume(queue.queue, (message) => {
       if (!message) {
         return;
       }
 
-      void this.handleMessage(message, handler);
+      void this.handleMessage(message, handler, options);
     });
   }
 
   private async handleMessage<TRequest, TResponse>(
     message: ConsumeMessage,
     handler: RabbitMqHandler<TRequest, TResponse>,
+    options: SubscribeOptions,
   ): Promise<void> {
     const channel = await this.getChannel();
 
@@ -218,8 +241,50 @@ export class RabbitMqClient implements OnModuleDestroy {
         return;
       }
 
+      if (this.shouldRetry(message, options)) {
+        this.retryMessage(message, options);
+        channel.ack(message);
+        return;
+      }
+
       channel.nack(message, false, false);
     }
+  }
+
+  private shouldRetry(message: ConsumeMessage, options: SubscribeOptions): boolean {
+    if (!options.retry) {
+      return false;
+    }
+
+    return getRetryCount(message) < options.retry.maxAttempts;
+  }
+
+  private retryMessage(message: ConsumeMessage, options: SubscribeOptions): void {
+    if (!options.retry) {
+      return;
+    }
+
+    const retryCount = getRetryCount(message) + 1;
+    this.channel?.publish(options.retry.exchange, options.retry.routingKey, message.content, {
+      contentType: message.properties.contentType ?? 'application/json',
+      correlationId: message.properties.correlationId,
+      deliveryMode: 2,
+      headers: {
+        ...message.properties.headers,
+        'x-original-routing-key': message.fields.routingKey,
+        'x-retry-count': retryCount,
+      },
+      messageId: randomUUID(),
+      timestamp: Date.now(),
+    });
+    this.logger.writeWithContext('warn', `RabbitMQ message scheduled for retry ${retryCount}.`, {
+      context: 'RabbitMqClient',
+      metadata: {
+        queue: options.queue,
+        retryDelayMs: options.retry.delayMs,
+        retryRoutingKey: options.retry.routingKey,
+      },
+    });
   }
 
   private reply<TData>(message: ConsumeMessage, response: RpcResponse<TData>): void {
@@ -289,6 +354,11 @@ function normalizeRpcError(error: unknown): RpcError {
     code: 'INTERNAL_ERROR',
     message: 'Unexpected RabbitMQ handler error.',
   };
+}
+
+function getRetryCount(message: ConsumeMessage): number {
+  const retryCount = message.properties.headers?.['x-retry-count'];
+  return typeof retryCount === 'number' && Number.isInteger(retryCount) ? retryCount : 0;
 }
 
 function httpStatusToCode(statusCode: number): string {

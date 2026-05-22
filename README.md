@@ -190,3 +190,9 @@ npm run seed --workspace @northlane/catalog-service
 ```
 
 RabbitMQ is available locally as infrastructure and is used by the auth/user/catalog/inventory/cart/order/payment/notification request-reply flow plus implemented domain events. Notification Service consumes user, order and payment events, persists notification history and simulates email delivery with JSON logs. Failed notification event handling is routed to `notification.events.dlq`.
+
+## Checkout Saga
+
+`POST /api/v1/checkout` publishes `order.command.create_order`. Order Service creates the `PENDING` order idempotently, publishes `inventory.command.reserve_stock`, reacts to `inventory.event.stock_reserved`, moves the order through `STOCK_RESERVED` and `PAYMENT_PENDING`, then publishes `payment.command.request_payment`.
+
+Payment Service processes MOCK payment idempotently and publishes either `payment.event.payment_succeeded` or `payment.event.payment_failed`. Success moves the order to `PAID` and `CONFIRMED`, publishes `inventory.command.confirm_stock`, clears the cart through `cart.command.clear_cart` and emits `order.event.order_confirmed`. Failure moves the order to `FAILED` and `CANCELLED`, publishes `inventory.command.release_stock` and emits `order.event.order_cancelled`.
