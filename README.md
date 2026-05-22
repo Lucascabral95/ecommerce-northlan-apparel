@@ -1,6 +1,6 @@
 # Northlane Apparel
 
-Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 12**: it includes the monorepo foundation, local infrastructure, API Gateway, shared contracts, RabbitMQ-backed auth/user/catalog/inventory/cart/order/payment/notification flows and the complete checkout saga wiring.
+Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 13**: it includes the monorepo foundation, local infrastructure, API Gateway, RabbitMQ-backed domain services, checkout saga wiring and the customer storefront.
 
 ## Current Scope
 
@@ -9,7 +9,7 @@ Implemented now:
 - npm workspaces.
 - Turborepo as a script orchestrator only.
 - Strict TypeScript base configuration.
-- Minimal Next.js app in `apps/web`.
+- Next.js storefront with public catalog, product detail, auth, bag, checkout and protected account pages.
 - NestJS API Gateway base in `apps/api-gateway` with `/api/v1`, health check, typed environment configuration, CORS, Helmet, rate limiting, structured request logs, correlation IDs, validation pipe and consistent error responses.
 - Auth Service with Prisma-owned credentials tables, bcrypt password hashing, JWT access tokens, refresh tokens and RabbitMQ request/reply handlers.
 - User Service with Prisma-owned profiles and addresses, plus `UserRegisteredEvent` consumption to create the initial profile.
@@ -18,9 +18,8 @@ Implemented now:
 - Cart Service with Prisma-owned carts and cart items, product snapshots and catalog validation through RabbitMQ request/reply.
 - Order Service with Prisma-owned orders, order items, status history, checkout idempotency and snapshot-based order history.
 - Payment Service with Prisma-owned payments, payment events, MOCK approval/rejection rules and command idempotency.
-- Event-driven checkout saga from order creation through stock reservation, mock payment, stock confirmation/release, cart clearing and notification events.
-- Retry and DLQ topology support for critical RabbitMQ consumers.
-- Notification Service with Prisma-owned notification history, simulated email logs and RabbitMQ retry/DLQ handling for failed notification events.
+- Notification Service with Prisma-owned notification history, simulated email logs and a RabbitMQ DLQ for failed notification events.
+- Event-driven checkout completion across order, inventory, payment, cart and notification services.
 - Eight NestJS service shells under `services/*`.
 - Prisma schema and migrations for implemented services; placeholders remain for future services.
 - Shared and contracts packages.
@@ -30,8 +29,8 @@ Implemented now:
 
 Not implemented yet:
 
-- Complete frontend UI.
-- End-to-end browser/API test that runs all services against Docker Compose.
+- Admin frontend.
+- Full end-to-end test environment for frontend plus Docker Compose services.
 - CI/CD or AWS deployment.
 
 ## Target Architecture
@@ -155,9 +154,13 @@ The public HTTP boundary is available under `/api/v1`.
 
 Every HTTP response includes or propagates `x-correlation-id`. Request logs are emitted as JSON and include the same correlation ID. Unhandled and HTTP errors use a consistent envelope with `success`, `statusCode`, `error`, `correlationId`, `path`, `method` and `timestamp`.
 
+## Web Storefront
+
+`apps/web` calls only API Gateway via `NEXT_PUBLIC_API_GATEWAY_URL`. It uses TanStack Query for Gateway server state, Zustand for session and UI-only bag/toast state, and React Hook Form with Zod for auth, profile and address validation. Public product pages include dynamic product metadata, image optimization and clean slug routes.
+
 ## Service Boundary Intent
 
-- `apps/web`: future customer and admin frontend.
+- `apps/web`: customer storefront and account frontend.
 - `apps/api-gateway`: future public HTTP boundary for the frontend.
 - `auth-service`: credentials, tokens and roles.
 - `user-service`: profiles, addresses and contact data.
