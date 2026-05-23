@@ -47,9 +47,11 @@ export function ProductDetailView({ product }: Readonly<{ product: ProductDto }>
 
 function Detail({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
-    <div className="grid grid-cols-[6rem_1fr] gap-3">
-      <dt className="font-bold uppercase tracking-[0.18em] text-[var(--muted)]">{label}</dt>
-      <dd className="m-0">{value}</dd>
+    <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-start gap-x-5 gap-y-2">
+      <dt className="pt-0.5 font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
+        {label}
+      </dt>
+      <dd className="m-0 min-w-0 leading-6">{value}</dd>
     </div>
   );
 }

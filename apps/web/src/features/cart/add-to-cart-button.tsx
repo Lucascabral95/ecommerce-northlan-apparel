@@ -24,7 +24,7 @@ export function AddToCartButton({
 
   return (
     <Button
-      className="w-full"
+      className="w-full cursor-pointer"
       disabled={!available || !variantId || addToCart.isPending}
       onClick={() => {
         if (!user) {

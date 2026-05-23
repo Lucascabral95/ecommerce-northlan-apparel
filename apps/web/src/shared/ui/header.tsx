@@ -5,6 +5,7 @@ import { useCart } from '../../features/cart/cart-hooks';
 import { CartDrawer } from '../../features/cart/cart-drawer';
 import { useCartUiStore } from '../../features/cart/cart-store';
 import { useAuthStore } from '../../features/auth/auth-store';
+import { HeaderNav } from './header-nav';
 
 export function Header() {
   const openDrawer = useCartUiStore((state) => state.openDrawer);
@@ -25,11 +26,7 @@ export function Header() {
               Apparel
             </span>
           </Link>
-          <nav className="hidden items-center gap-6 text-sm font-semibold uppercase tracking-[0.16em] md:flex">
-            <Link href="/products">Shop</Link>
-            <Link href="/categories/remeras">Categories</Link>
-            <Link href="/account/orders">Orders</Link>
-          </nav>
+          <HeaderNav />
           <div className="flex items-center gap-2">
             {user ? (
               <>
@@ -40,7 +37,7 @@ export function Header() {
                   Account
                 </Link>
                 <button
-                  className="hidden px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)] lg:block"
+                  className="hidden px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)] lg:block cursor-pointer"
                   onClick={clearSession}
                   type="button"
                 >
@@ -57,7 +54,7 @@ export function Header() {
             )}
             <button
               aria-label="Open bag"
-              className="relative rounded-full bg-[var(--ink)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--paper-solid)]"
+              className="relative rounded-full bg-[var(--ink)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--paper-solid)] cursor-pointer"
               onClick={openDrawer}
               type="button"
             >

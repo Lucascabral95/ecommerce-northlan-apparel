@@ -41,18 +41,24 @@ try {
   }
 
   const activeSkus = variants.map((variant) => variant.sku);
-  let deletedCount = 0;
+  let archivedCount = 0;
   let createdCount = 0;
   let updatedCount = 0;
 
-  const deleteResult = await inventoryPrisma.inventoryItem.deleteMany({
+  const obsoleteItemsResult = await inventoryPrisma.inventoryItem.updateMany({
+    data: {
+      isActive: false,
+      reservedStock: 0,
+      stockOnHand: 0,
+    },
     where: {
+      isActive: true,
       sku: {
         notIn: activeSkus,
       },
     },
   });
-  deletedCount = deleteResult.count;
+  archivedCount = obsoleteItemsResult.count;
 
   for (const variant of variants) {
     const existingItem = await inventoryPrisma.inventoryItem.findFirst({
@@ -92,7 +98,7 @@ try {
   }
 
   process.stdout.write(
-    `Synchronized ${variants.length} inventory items from seeded catalog variants (${createdCount} created, ${updatedCount} updated, ${deletedCount} deleted).\n`,
+    `Synchronized ${variants.length} inventory items from seeded catalog variants (${createdCount} created, ${updatedCount} updated, ${archivedCount} archived).\n`,
   );
 } finally {
   await Promise.all([catalogPrisma.$disconnect(), inventoryPrisma.$disconnect()]);

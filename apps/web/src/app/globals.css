@@ -53,9 +53,15 @@ textarea {
 }
 
 .site-frame {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   overflow: clip;
   position: relative;
+}
+
+.site-main {
+  flex: 1 0 auto;
 }
 
 .display-title {
@@ -110,6 +116,33 @@ textarea {
   animation: rise 760ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.marquee-track {
+  align-items: center;
+  animation: marquee-scroll 34s linear infinite;
+  display: inline-flex;
+  min-width: max-content;
+}
+
+.marquee-item {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  opacity: 0.92;
+  padding-inline: 1.5rem;
+  text-transform: uppercase;
+}
+
+.marquee-item::after {
+  content: '•';
+  margin-left: 1.5rem;
+  opacity: 0.5;
+}
+
 @keyframes rise {
   from {
     opacity: 0;
@@ -122,12 +155,26 @@ textarea {
   }
 }
 
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
 
   .reveal {
+    animation: none;
+  }
+
+  .marquee-track {
     animation: none;
   }
 }

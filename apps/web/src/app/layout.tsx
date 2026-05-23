@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { HomeMarquee } from '../features/home/home-marquee';
 import { Footer } from '../shared/ui/footer';
 import { Header } from '../shared/ui/header';
 import { AppProviders } from './providers';
@@ -19,8 +20,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <AppProviders>
           <div className="site-frame">
+            <HomeMarquee />
             <Header />
-            <main>{children}</main>
+            <main className="site-main">{children}</main>
             <Footer />
           </div>
         </AppProviders>

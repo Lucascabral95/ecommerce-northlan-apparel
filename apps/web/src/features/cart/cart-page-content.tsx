@@ -40,7 +40,7 @@ export function CartPageContent() {
               Shipping and tax snapshots are prepared during the checkout flow.
             </p>
             <Link
-              className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--ink)] text-sm font-semibold uppercase tracking-[0.12em] text-[var(--paper-solid)]"
+              className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--ink)] text-sm font-semibold uppercase tracking-[0.12em] ![color:#fff]"
               href="/checkout"
             >
               Checkout

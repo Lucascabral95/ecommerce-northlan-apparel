@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { Button } from '../../shared/ui/button';
 import { useCreateAddress } from './account-hooks';
+import { ARGENTINA_COUNTRY_NAME, ARGENTINA_PROVINCES } from './argentina-locations';
 import { addressSchema, type AddressValues } from './address-validation';
 
 export function AddressForm() {
@@ -13,11 +14,11 @@ export function AddressForm() {
       alias: 'Home',
       apartment: '',
       city: '',
-      country: 'Argentina',
+      country: ARGENTINA_COUNTRY_NAME,
       isDefault: false,
       phone: '',
       postalCode: '',
-      province: '',
+      province: undefined,
       recipientName: '',
       references: '',
       street: '',
@@ -45,10 +46,19 @@ export function AddressForm() {
         <input className="field" {...form.register('phone')} />
       </Field>
       <Field error={form.formState.errors.country?.message} label="Country">
-        <input className="field" {...form.register('country')} />
+        <input className="field cursor-not-allowed opacity-80" readOnly {...form.register('country')} />
       </Field>
       <Field error={form.formState.errors.province?.message} label="Province">
-        <input className="field" {...form.register('province')} />
+        <select className="field" defaultValue="" {...form.register('province')}>
+          <option value="" disabled>
+            Select a province
+          </option>
+          {ARGENTINA_PROVINCES.map((province) => (
+            <option key={province} value={province}>
+              {province}
+            </option>
+          ))}
+        </select>
       </Field>
       <Field error={form.formState.errors.city?.message} label="City">
         <input className="field" {...form.register('city')} />

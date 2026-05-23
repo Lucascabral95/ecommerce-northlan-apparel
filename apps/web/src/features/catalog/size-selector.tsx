@@ -17,7 +17,7 @@ export function SizeSelector({
       <div className="mt-3 flex flex-wrap gap-2">
         {variants.map((variant) => (
           <button
-            className={`min-w-14 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+            className={`min-w-14 rounded-full border cursor-pointer px-4 py-2 text-sm font-semibold transition ${
               variant.id === selectedVariant?.id
                 ? 'border-[var(--ink)] bg-[var(--ink)] text-[var(--paper-solid)]'
                 : 'border-[var(--line)] bg-white/45 disabled:opacity-35'

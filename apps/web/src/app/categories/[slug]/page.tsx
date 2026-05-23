@@ -9,10 +9,15 @@ export default async function CategoryPage({
   params,
 }: Readonly<{ params: Promise<{ slug: string }> }>) {
   const { slug } = await params;
+  const title = slug
+    .split('-')
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ');
+
   return (
     <ProductDirectory
       initialFilters={{ categorySlug: slug }}
-      title={`${slug.replaceAll('-', ' ')} edit`}
+      title={title}
     />
   );
 }

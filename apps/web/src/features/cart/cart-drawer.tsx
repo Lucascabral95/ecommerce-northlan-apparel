@@ -34,7 +34,7 @@ export function CartDrawer() {
             <h2 className="display-title mt-3 text-5xl">Your edit</h2>
           </div>
           <button
-            className="rounded-full border border-[var(--line)] px-4 py-2 text-xs font-bold uppercase tracking-[0.2em]"
+            className="rounded-full border border-[var(--line)] px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] cursor-pointer"
             onClick={closeDrawer}
             type="button"
           >
@@ -74,7 +74,7 @@ export function CartDrawer() {
                 View bag
               </Link>
               <Link
-                className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--ink)] text-sm font-semibold uppercase tracking-[0.08em] text-[var(--paper-solid)]"
+                className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--ink)] px-6 text-sm font-semibold uppercase tracking-[0.08em] ![color:#fff]"
                 href="/checkout"
                 onClick={closeDrawer}
               >

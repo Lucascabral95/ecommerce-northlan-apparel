@@ -22,7 +22,7 @@ export function ProductFilters({
       <div className="flex items-center justify-between gap-3">
         <p className="eyebrow">Filters</p>
         <Button
-          className="min-h-9 px-3 text-[0.65rem]"
+          className="min-h-9 px-3 text-[0.65rem] cursor-pointer"
           intent="quiet"
           onClick={() => onChange({ sortBy: filters.sortBy })}
           type="button"
