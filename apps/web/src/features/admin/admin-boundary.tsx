@@ -57,7 +57,7 @@ function AdminGate({
         <h1 className="display-title mt-5 text-5xl md:text-7xl">{title}</h1>
         <p className="mx-auto mt-5 max-w-xl text-[var(--muted)]">{description}</p>
         <Link
-          className="mt-7 inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--ink)] px-5 text-sm font-semibold uppercase tracking-[0.08em] text-[var(--paper-solid)]"
+          className="mt-7 inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--ink)] px-5 text-sm font-semibold uppercase tracking-[0.08em] ![color:#fff]"
           href={actionHref}
         >
           {actionLabel}

@@ -12,6 +12,10 @@ export type RegisterInput = LoginInput &
     lastName?: string;
   }>;
 
+export type RefreshInput = Readonly<{
+  refreshToken: string;
+}>;
+
 export function login(input: LoginInput): Promise<AuthResponseDto> {
   return apiRequest('/auth/login', {
     body: JSON.stringify(input),
@@ -21,6 +25,13 @@ export function login(input: LoginInput): Promise<AuthResponseDto> {
 
 export function register(input: RegisterInput): Promise<AuthResponseDto> {
   return apiRequest('/auth/register', {
+    body: JSON.stringify(input),
+    method: 'POST',
+  });
+}
+
+export function refreshSession(input: RefreshInput): Promise<AuthResponseDto> {
+  return apiRequest('/auth/refresh', {
     body: JSON.stringify(input),
     method: 'POST',
   });

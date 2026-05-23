@@ -1,25 +1,29 @@
 .PHONY: install dev images infra-up bootstrap up start down logs build lint test test-e2e test-e2e-live clean
 
+COMPOSE_BAKE ?= true
+COMPOSE_PARALLEL_LIMIT ?= 4
+export COMPOSE_BAKE COMPOSE_PARALLEL_LIMIT
+
 install:
 	npm install
 
 dev:
-	npm run dev
+	cd apps/web && npm run dev
 
 images:
-	docker compose build backend-runtime web
+	docker compose build backend-runtime bootstrap web
 
 infra-up:
 	docker compose up -d postgres rabbitmq redis
 
-bootstrap: infra-up
-	docker compose --profile bootstrap run --rm --build bootstrap
+bootstrap: images infra-up
+	docker compose --profile bootstrap run --rm bootstrap
 
-up: images bootstrap
-	docker compose up -d
+up: bootstrap
+	docker compose up -d --no-build
 
 start: images
-	docker compose up -d
+	docker compose up -d --no-build
 
 down:
 	docker compose down --remove-orphans

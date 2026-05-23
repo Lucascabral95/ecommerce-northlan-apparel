@@ -1,45 +1,130 @@
+import type { Route } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { HomeFeaturedProducts } from '../features/catalog/home-featured-products';
+import { HomeHeroSlider } from '../features/home/home-hero-slider';
 
 export default function HomePage() {
+  const categorySections: readonly {
+    href: Route;
+    imageUrl: string;
+    name: string;
+    text: string;
+  }[] = [
+    {
+      href: '/categories/sweaters' as Route,
+      imageUrl:
+        'https://res.cloudinary.com/dywcuco2r/image/upload/v1756857525/devre-sweater_60d000192-042_000_e4t9mg.webp',
+      name: 'Knitwear',
+      text: 'Heavy knits, bomber sweaters and cleaner necklines for layering.',
+    },
+    {
+      href: '/categories/camperas' as Route,
+      imageUrl:
+        'https://res.cloudinary.com/dywcuco2r/image/upload/v1756858073/devre-campera_01d000120-001_000_uj7sdo.webp',
+      name: 'Outerwear',
+      text: 'Technical puffers and denim jackets with sharper proportions.',
+    },
+    {
+      href: '/categories/chombas' as Route,
+      imageUrl:
+        'https://res.cloudinary.com/dywcuco2r/image/upload/v1756859937/devre-chomba_06d000122-081_001_evds68.webp',
+      name: 'Polos',
+      text: 'Short-sleeve pieces that keep the catalog open beyond winter tailoring.',
+    },
+  ];
+
   return (
     <>
-      <section className="page-shell pt-8">
-        <div className="surface reveal relative overflow-hidden rounded-[2.8rem] px-6 py-12 md:px-12 md:py-20">
-          <div className="absolute -right-20 -top-28 h-80 w-80 rounded-full border border-white/25 bg-[var(--accent)]/18 blur-3xl" />
-          <div className="absolute -bottom-40 left-1/3 h-96 w-96 rounded-full bg-[var(--accent-cool)]/18 blur-3xl" />
-          <div className="relative max-w-5xl">
-            <p className="eyebrow">Winter street tailoring / Northlane 26</p>
-            <h1 className="display-title mt-6 text-[clamp(4.4rem,12vw,13rem)]">
-              Quiet layers. Hard routes.
-            </h1>
-            <div className="mt-8 grid gap-5 md:grid-cols-[1fr_auto] md:items-end">
-              <p className="max-w-2xl text-base leading-8 text-[var(--muted)] md:text-xl">
-                Premium apparel built around exact silhouettes, deep neutrals and a checkout flow
-                designed to preserve every selected size.
-              </p>
-              <Link
-                className="inline-flex min-h-14 items-center justify-center rounded-full bg-[var(--ink)] px-7 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--paper-solid)] transition hover:bg-[var(--accent)]"
-                href="/products"
-              >
-                Shop the edit
-              </Link>
+      <HomeHeroSlider />
+      <HomeFeaturedProducts />
+      <section className="page-shell">
+        <div className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
+          <article className="surface overflow-hidden rounded-[2rem]">
+            <div className="grid gap-0 md:grid-cols-[.95fr_1.05fr]">
+              <div className="relative min-h-[24rem]">
+                <Image
+                  alt="Northlane tailoring selection"
+                  className="object-cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 45vw"
+                  src="https://res.cloudinary.com/dywcuco2r/image/upload/v1756859496/devre-traje_03d000147-003_001_ksisx0.webp"
+                />
+              </div>
+              <div className="p-6 md:p-8 lg:p-10">
+                <p className="eyebrow">Tailoring update</p>
+                <h2 className="display-title mt-5 text-5xl md:text-6xl">
+                  Precision cuts with less ceremony.
+                </h2>
+                <p className="mt-5 max-w-xl text-base leading-8 text-[var(--muted)]">
+                  Suits, soft jackets and formal trousers shaped for daily use. The collection stays
+                  formal where it matters and lighter everywhere else.
+                </p>
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <Link
+                    className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--ink)] px-6 text-sm font-semibold uppercase tracking-[0.14em] ![color:#fff] transition hover:bg-[var(--accent)]"
+                    href="/categories/trajes"
+                  >
+                    Shop suits
+                  </Link>
+                  <Link
+                    className="inline-flex min-h-12 items-center justify-center rounded-full border border-[var(--line)] px-6 text-sm font-semibold uppercase tracking-[0.14em]"
+                    href="/categories/sacos"
+                  >
+                    View jackets
+                  </Link>
+                </div>
+              </div>
             </div>
+          </article>
+          <div className="grid gap-4">
+            {[
+              [
+                'Stock-aware checkout',
+                'Every selected size is guarded through the flow before payment closes.',
+              ],
+              [
+                'Cold-season depth',
+                'Outerwear, knitwear and tailoring are staged as a coherent winter edit.',
+              ],
+              [
+                'Account continuity',
+                'Orders, addresses and profile details stay organized without extra steps.',
+              ],
+            ].map(([title, description]) => (
+              <article className="surface rounded-[1.8rem] p-6" key={title}>
+                <p className="eyebrow">{title}</p>
+                <p className="display-title mt-7 text-3xl leading-[1.02] md:text-4xl">
+                  {description}
+                </p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
-      <HomeFeaturedProducts />
       <section className="page-shell">
         <div className="grid gap-4 md:grid-cols-3">
-          {[
-            ['Oversized essentials', 'Volume through shoulders, clean at the hem.'],
-            ['Stock-aware checkout', 'Inventory reservations protect the piece you selected.'],
-            ['Account timeline', 'Addresses, profile details and every order state in one lane.'],
-          ].map(([title, description]) => (
-            <article className="surface rounded-[1.8rem] p-6" key={title}>
-              <p className="eyebrow">{title}</p>
-              <p className="display-title mt-8 text-4xl">{description}</p>
-            </article>
+          {categorySections.map((section) => (
+            <Link
+              className="group surface overflow-hidden rounded-[1.8rem]"
+              href={section.href}
+              key={section.name}
+            >
+              <div className="relative aspect-[4/5] overflow-hidden">
+                <Image
+                  alt={section.name}
+                  className="object-cover transition duration-700 group-hover:scale-[1.04]"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                  src={section.imageUrl}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[rgba(13,12,10,.82)] via-[rgba(13,12,10,.18)] to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-5 text-[var(--paper-solid)]">
+                  <p className="eyebrow ![color:#F4EBDD]">{section.name}</p>
+                  <p className="mt-3 text-lg leading-7">{section.text}</p>
+                </div>
+              </div>
+            </Link>
           ))}
         </div>
       </section>
