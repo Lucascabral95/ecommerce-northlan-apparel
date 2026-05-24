@@ -1,6 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useAddresses } from '../account/account-hooks';
 import { useCart } from '../cart/cart-hooks';
@@ -10,6 +11,7 @@ import { CheckoutSummary } from './checkout-summary';
 import { useCheckout } from './checkout-hook';
 
 export function CheckoutPageContent() {
+  const t = useTranslations('checkout');
   const cart = useCart();
   const addresses = useAddresses();
   const checkout = useCheckout();
@@ -28,8 +30,8 @@ export function CheckoutPageContent() {
     return (
       <section className="page-shell">
         <EmptyState
-          description="Checkout starts from the active bag snapshot."
-          title="The bag is empty."
+          description={t('emptyDescription')}
+          title={t('emptyTitle')}
         />
       </section>
     );
@@ -38,14 +40,14 @@ export function CheckoutPageContent() {
   return (
     <section className="page-shell">
       <div className="mb-8">
-        <p className="eyebrow">Checkout</p>
-        <h1 className="display-title mt-4 text-6xl md:text-8xl">Reserve the order</h1>
+        <p className="eyebrow">{t('eyebrow')}</p>
+        <h1 className="display-title mt-4 text-6xl md:text-8xl">{t('reserve')}</h1>
       </div>
       {addresses.error ? <ErrorState message={addresses.error.message} /> : null}
       {cart.data ? (
         <div className="grid gap-5 lg:grid-cols-[1fr_25rem]">
           <section className="surface rounded-[2rem] p-6">
-            <p className="eyebrow">Shipping address</p>
+            <p className="eyebrow">{t('address')}</p>
             <div className="mt-5 grid gap-3">
               {addresses.data?.map((address) => (
                 <label
@@ -96,7 +98,7 @@ export function CheckoutPageContent() {
               }}
               type="button"
             >
-              {checkout.isPending ? 'Creating order' : 'Place order'}
+              {checkout.isPending ? t('creating') : t('placeOrder')}
             </Button>
           </section>
           <CheckoutSummary cart={cart.data} />

@@ -1,6 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
 import { useAddToCart } from './cart-hooks';
 import { useCartUiStore } from './cart-store';
 import { Button } from '../../shared/ui/button';
@@ -16,6 +17,7 @@ export function AddToCartButton({
   productId: string;
   variantId?: string;
 }>) {
+  const t = useTranslations('products.detail');
   const addToCart = useAddToCart();
   const openDrawer = useCartUiStore((state) => state.openDrawer);
   const user = useAuthStore((state) => state.user);
@@ -46,7 +48,7 @@ export function AddToCartButton({
       }}
       type="button"
     >
-      {available ? (addToCart.isPending ? 'Adding' : 'Add to bag') : 'Out of stock'}
+      {available ? (addToCart.isPending ? 'Adding' : t('addToBag')) : t('soldOut')}
     </Button>
   );
 }

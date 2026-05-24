@@ -1,29 +1,31 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
 import { useAuthStore } from '../auth/auth-store';
 
 export function SecurityPageContent() {
+  const t = useTranslations('account.security');
   const clearSession = useAuthStore((state) => state.clearSession);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const user = useAuthStore((state) => state.user);
 
-  const signedInEmail = hasHydrated ? user?.email ?? 'No account signed in' : 'Checking session';
-  const sessionStatus = hasHydrated ? (user ? 'Active on this device' : 'Signed out') : 'Checking';
+  const signedInEmail = hasHydrated ? user?.email ?? '-' : '-';
+  const sessionStatus = hasHydrated ? (user ? t('sessionStatus') : '-') : '-';
 
   return (
     <div>
-      <p className="eyebrow">Security</p>
-      <h1 className="display-title mt-4 text-6xl md:text-8xl">Protect your account</h1>
+      <p className="eyebrow">{t('eyebrow')}</p>
+      <h1 className="display-title mt-4 text-6xl md:text-8xl">{t('title')}</h1>
       <p className="mt-5 max-w-2xl text-base leading-8 text-[var(--muted)] md:text-lg">
         Review how your account is being used on this device and keep your sign-in details up to
         date.
       </p>
 
       <div className="mt-8 grid gap-4 md:grid-cols-3">
-        <SecuritySummary label="Signed in as" value={signedInEmail} />
+        <SecuritySummary label={t('signedInAs')} value={signedInEmail} />
         <SecuritySummary label="Session" value={sessionStatus} />
-        <SecuritySummary label="Access level" value={user?.role === 'ADMIN' ? 'Administrator' : 'Standard account'} />
+        <SecuritySummary label={t('accessLevel')} value={user?.role === 'ADMIN' ? t('admin') : t('standard')} />
       </div>
 
       <section className="surface mt-6 grid gap-6 rounded-[2rem] p-6 lg:grid-cols-[1.2fr_.8fr]">
@@ -56,7 +58,7 @@ export function SecurityPageContent() {
               onClick={clearSession}
               type="button"
             >
-              Sign out on this device
+              {t('signOut')}
             </button>
           </div>
         </div>

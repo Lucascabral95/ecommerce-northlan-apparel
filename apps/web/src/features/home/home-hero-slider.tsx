@@ -1,63 +1,46 @@
 'use client';
 
-import type { Route } from 'next';
 import Image from 'next/image';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
+import type { ComponentProps } from 'react';
 import { useEffect, useState } from 'react';
 
 type HeroSlide = Readonly<{
-  ctaHref: Route;
-  ctaLabel: string;
-  description: string;
-  eyebrow: string;
+  ctaHref: ComponentProps<typeof Link>['href'];
   imageUrl: string;
-  title: string;
+  key: 'jackets' | 'outerwear' | 'sweaters' | 'tailoring';
 }>;
 
 const heroSlides: readonly HeroSlide[] = [
   {
-    ctaHref: '/categories/sobretodos' as Route,
-    ctaLabel: 'Shop outerwear',
-    description:
-      'Structured wool-like coats, restrained palettes and silhouettes built for the coldest city routes.',
-    eyebrow: 'Winter editorial / Outerwear',
+    ctaHref: '/categories/sobretodos',
     imageUrl:
       'https://res.cloudinary.com/dywcuco2r/image/upload/v1756858234/devre-sobretodo_80d000032-002_001_vtgggg.webp',
-    title: 'Sharper layers for long winter lines.',
+    key: 'outerwear',
   },
   {
-    ctaHref: '/categories/sacos' as Route,
-    ctaLabel: 'See tailoring',
-    description:
-      'Modern soft tailoring with textured fabrics, dark neutrals and pieces designed to move from office to night.',
-    eyebrow: 'Tailoring / Soft structure',
+    ctaHref: '/categories/sacos',
     imageUrl:
       'https://res.cloudinary.com/dywcuco2r/image/upload/v1756858868/devre-saco_02d000177-081_000_u41a7v.webp',
-    title: 'Formal cuts without the old uniform feel.',
+    key: 'tailoring',
   },
   {
-    ctaHref: '/categories/sweaters' as Route,
-    ctaLabel: 'Explore knitwear',
-    description:
-      'Premium knits, bomber cardigans and textured sweaters calibrated for layering through every hour of the day.',
-    eyebrow: 'Knitwear / Daily depth',
+    ctaHref: '/categories/sweaters',
     imageUrl:
       'https://res.cloudinary.com/dywcuco2r/image/upload/v1756857752/devre-sweater_60d000169-001_000_orrbpo.webp',
-    title: 'Soft volume, exact texture, darker tone.',
+    key: 'sweaters',
   },
   {
-    ctaHref: '/categories/camperas' as Route,
-    ctaLabel: 'Open the edit',
-    description:
-      'Technical puffers and washed denim jackets that anchor the collection with utility and lighter motion.',
-    eyebrow: 'Transit / Utility layers',
+    ctaHref: '/categories/camperas',
     imageUrl:
       'https://res.cloudinary.com/dywcuco2r/image/upload/v1756858186/devre-campera_01d000164-002_000_hnusz1.webp',
-    title: 'Urban jackets tuned for movement and weight.',
+    key: 'jackets',
   },
 ] as const;
 
 export function HomeHeroSlider() {
+  const t = useTranslations('home');
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -80,7 +63,7 @@ export function HomeHeroSlider() {
         <div className="grid min-h-[74vh] lg:grid-cols-[1.25fr_.75fr]">
           <div className="relative min-h-[56vh] lg:min-h-[74vh]">
             <Image
-              alt={activeSlide.title}
+              alt={t(`hero.slides.${activeSlide.key}.title`)}
               className="object-cover"
               fill
               priority
@@ -90,33 +73,33 @@ export function HomeHeroSlider() {
             <div className="absolute inset-0 bg-gradient-to-r from-[rgba(16,14,11,.68)] via-[rgba(16,14,11,.22)] to-transparent" />
             <div className="absolute inset-x-0 bottom-0 p-6 md:p-8 lg:p-10">
               <p className="eyebrow ![color:#F4EBDD] [text-shadow:0_2px_12px_rgba(0,0,0,.45)]">
-                {activeSlide.eyebrow}
+                {t(`hero.slides.${activeSlide.key}.eyebrow`)}
               </p>
               <h1 className="display-title mt-5 max-w-3xl text-[clamp(3.4rem,8vw,8.4rem)] text-[var(--paper-solid)]">
-                {activeSlide.title}
+                {t(`hero.slides.${activeSlide.key}.title`)}
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-[rgba(248,242,231,.82)] md:text-lg">
-                {activeSlide.description}
+                {t(`hero.slides.${activeSlide.key}.description`)}
               </p>
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <Link
                   className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--paper-solid)] px-6 text-sm font-semibold uppercase tracking-[0.14em] text-[var(--ink)] transition hover:bg-white"
                   href={activeSlide.ctaHref}
                 >
-                  {activeSlide.ctaLabel}
+                  {t(`hero.slides.${activeSlide.key}.primaryCta`)}
                 </Link>
                 <Link
                   className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/18 bg-[rgba(17,15,12,.46)] px-6 text-sm font-semibold uppercase tracking-[0.14em] ![color:#fff] shadow-[0_10px_30px_rgba(0,0,0,.18)] backdrop-blur-md transition hover:bg-[rgba(255,255,255,.16)] hover:![color:#fff]"
                   href="/products"
                 >
-                  View all products
+                  {t('hero.viewProducts')}
                 </Link>
               </div>
             </div>
           </div>
           <div className="surface flex flex-col justify-between gap-8 rounded-none border-0 p-6 md:p-8 lg:p-10">
             <div>
-              <p className="eyebrow">Current sequence</p>
+              <p className="eyebrow">Northlane</p>
               <div className="mt-5 grid gap-3">
                 {heroSlides.map((slide, index) => (
                   <button
@@ -125,15 +108,19 @@ export function HomeHeroSlider() {
                         ? 'border-[rgba(21,19,15,.48)] bg-[rgba(255,249,242,.82)]'
                         : 'border-transparent bg-[rgba(255,249,242,.46)] hover:border-[var(--line)] hover:bg-[rgba(255,249,242,.7)]'
                     }`}
-                    key={slide.title}
+                    key={slide.key}
                     onClick={() => setActiveIndex(index)}
                     type="button"
                   >
                     <p className="text-[0.68rem] font-bold uppercase tracking-[0.24em] text-[var(--muted)]">
                       {String(index + 1).padStart(2, '0')}
                     </p>
-                    <h2 className="mt-2 text-lg font-semibold">{slide.title}</h2>
-                    <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{slide.eyebrow}</p>
+                    <h2 className="mt-2 text-lg font-semibold">
+                      {t(`hero.slides.${slide.key}.title`)}
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                      {t(`hero.slides.${slide.key}.eyebrow`)}
+                    </p>
                   </button>
                 ))}
               </div>

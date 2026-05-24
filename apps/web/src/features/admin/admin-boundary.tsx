@@ -1,11 +1,13 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link } from '@/i18n/navigation';
+import { usePathname } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
 import type { ComponentProps, ReactNode } from 'react';
 import { useAuthStore } from '../auth/auth-store';
 
 export function AdminBoundary({ children }: Readonly<{ children: ReactNode }>) {
+  const t = useTranslations('admin');
   const pathname = usePathname();
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const user = useAuthStore((state) => state.user);
@@ -18,9 +20,9 @@ export function AdminBoundary({ children }: Readonly<{ children: ReactNode }>) {
     return (
       <AdminGate
         actionHref={`/login?next=${encodeURIComponent(pathname)}`}
-        actionLabel="Admin login"
-        description="Management APIs require a signed JWT and the gateway enforces the admin guard."
-        title="Sign in before entering operations."
+        actionLabel={t('login')}
+        description={t('signInDescription')}
+        title={t('signInTitle')}
       />
     );
   }
@@ -29,9 +31,9 @@ export function AdminBoundary({ children }: Readonly<{ children: ReactNode }>) {
     return (
       <AdminGate
         actionHref="/"
-        actionLabel="Return to store"
-        description="This workspace is reserved for catalog, stock and order operations."
-        title="Your account does not have admin access."
+        actionLabel={t('returnStore')}
+        description={t('forbiddenDescription')}
+        title={t('forbiddenTitle')}
       />
     );
   }
@@ -50,10 +52,12 @@ function AdminGate({
   description: string;
   title: string;
 }>) {
+  const t = useTranslations('admin');
+
   return (
     <section className="page-shell">
       <div className="surface mx-auto max-w-3xl rounded-[2.6rem] p-8 text-center md:p-12">
-        <p className="eyebrow">Northlane control room</p>
+        <p className="eyebrow">{t('gateEyebrow')}</p>
         <h1 className="display-title mt-5 text-5xl md:text-7xl">{title}</h1>
         <p className="mx-auto mt-5 max-w-xl text-[var(--muted)]">{description}</p>
         <Link

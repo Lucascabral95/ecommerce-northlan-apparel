@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import type { OrderDto } from '@northlane/contracts';
 import { formatDate, formatMoney } from '../../shared/format';
 import { EmptyState, ErrorState, LoadingCards } from '../../shared/ui/states';

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { ErrorState, LoadingCards, EmptyState } from '../../shared/ui/states';
 import { useCategories, useProducts } from './catalog-hooks';
@@ -13,6 +14,7 @@ export function ProductDirectory({
   initialFilters = {},
   title = 'Northlane Catalog',
 }: Readonly<{ initialFilters?: ProductFilters; title?: string }>) {
+  const t = useTranslations('products');
   const [filters, setFilters] = useState<ProductFilters>({
     page: '1',
     pageSize: '24',
@@ -51,8 +53,10 @@ export function ProductDirectory({
     <section className="page-shell">
       <div className="mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div>
-          <p className="eyebrow">Catalog</p>
-          <h1 className="display-title mt-4 text-6xl md:text-8xl">{title}</h1>
+          <p className="eyebrow">{t('catalogEyebrow')}</p>
+          <h1 className="display-title mt-4 text-6xl md:text-8xl">
+            {title === 'Northlane Catalog' ? t('directoryTitle') : title}
+          </h1>
         </div>
         <ProductSort filters={filters} onChange={updateFilters} />
       </div>
@@ -68,8 +72,8 @@ export function ProductDirectory({
           {products.error ? <ErrorState message={products.error.message} /> : null}
           {products.data && products.data.items.length === 0 ? (
             <EmptyState
-              description="Change size, color or price filters to widen the collection."
-              title="No pieces match this cut."
+              description={t('emptyDescription')}
+              title={t('emptyTitle')}
             />
           ) : null}
           {products.data && products.data.items.length > 0 ? (
