@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Button } from '../../shared/ui/button';
 
 export function CatalogPagination({
@@ -13,6 +14,7 @@ export function CatalogPagination({
   pageSize: number;
   totalItems: number;
 }>) {
+  const t = useTranslations('products');
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const pages = buildVisiblePages(currentPage, totalPages);
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -22,9 +24,11 @@ export function CatalogPagination({
     <div className="mt-8 flex flex-col gap-4 border-t border-[var(--line)] pt-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-[var(--muted)]">
-          Showing <span className="font-semibold text-[var(--ink)]">{startItem}</span>
-          {' '}to <span className="font-semibold text-[var(--ink)]">{endItem}</span>
-          {' '}of <span className="font-semibold text-[var(--ink)]">{totalItems}</span> pieces
+          {t.rich('pagination', {
+            from: startItem,
+            to: endItem,
+            total: totalItems,
+          })}
         </p>
         <p className="text-sm text-[var(--muted)]">
           Page <span className="font-semibold text-[var(--ink)]">{currentPage}</span> of{' '}
@@ -39,7 +43,7 @@ export function CatalogPagination({
           onClick={() => onPageChange(currentPage - 1)}
           type="button"
         >
-          Previous
+          {t('previous')}
         </Button>
         {pages.map((page) => (
           <Button
@@ -59,7 +63,7 @@ export function CatalogPagination({
           onClick={() => onPageChange(currentPage + 1)}
           type="button"
         >
-          Next
+          {t('next')}
         </Button>
       </div>
     </div>

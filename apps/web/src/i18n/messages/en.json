@@ -1,0 +1,261 @@
+{
+  "metadata": {
+    "defaultTitle": "Northlane Apparel",
+    "defaultDescription": "Premium apparel commerce powered by Northlane Apparel product stories and a resilient event-driven checkout.",
+    "productsTitle": "Products",
+    "productsDescription": "Shop apparel by category, size, color, brand and price.",
+    "productFallbackTitle": "Product",
+    "cartTitle": "Bag",
+    "checkoutTitle": "Checkout",
+    "loginTitle": "Login",
+    "registerTitle": "Register",
+    "accountTitle": "Account",
+    "profileTitle": "Profile",
+    "addressesTitle": "Addresses",
+    "ordersTitle": "Orders",
+    "orderDetailTitle": "Order detail",
+    "securityTitle": "Security",
+    "categoryTitle": "Category",
+    "adminTitle": "Admin",
+    "adminProductsTitle": "Admin products",
+    "adminOrdersTitle": "Admin orders",
+    "adminInventoryTitle": "Admin inventory",
+    "adminUsersTitle": "Admin users",
+    "newProductTitle": "New product",
+    "editProductTitle": "Edit product"
+  },
+  "common": {
+    "account": "Account",
+    "addresses": "Addresses",
+    "admin": "Admin",
+    "bag": "Bag",
+    "checkout": "Checkout",
+    "loading": "Loading",
+    "login": "Login",
+    "logout": "Logout",
+    "orders": "Orders",
+    "products": "Products",
+    "profile": "Profile",
+    "register": "Register",
+    "save": "Save",
+    "security": "Security"
+  },
+  "navigation": {
+    "brandEyebrow": "Northlane",
+    "brandName": "Apparel",
+    "shop": "Shop",
+    "categories": "Categories",
+    "orders": "Orders",
+    "language": "Language",
+    "openBag": "Open bag",
+    "allProducts": "All products",
+    "newArrivals": "New arrivals",
+    "winterEdit": "Winter edit",
+    "tailoring": "Tailoring",
+    "orderHistory": "Order history",
+    "profileDetails": "Profile details",
+    "deliveryAddresses": "Delivery addresses",
+    "signInOrders": "Sign in to manage orders",
+    "savedAddresses": "Saved addresses",
+    "catalogMap": "Catalog map",
+    "openDirectory": "Open full directory",
+    "shopPanelEyebrow": "Shop by intent",
+    "shopPanelTitle": "Move through the catalog with context.",
+    "shopPanelSummary": "Enter the catalog through the full directory or take a narrower route into the current edit.",
+    "ordersSignedInEyebrow": "Your account lane",
+    "ordersGuestEyebrow": "Account access",
+    "ordersSignedInSummary": "Your account keeps orders, addresses and profile details in one place.",
+    "ordersGuestSummary": "Order history and account tools become available after sign-in.",
+    "categoriesTitle": "Browse categories without guessing the route.",
+    "categoriesSummary": "Category navigation reflects the catalog structure coming from the backend, including subcategories when they exist.",
+    "categoriesLoading": "Categories are loading from the catalog.",
+    "exploreCategory": "Explore the full {name} selection.",
+    "links": {
+      "allProducts": "The full product directory with filters, sorting and pagination.",
+      "newArrivals": "A tighter product edit focused on the latest pieces in the catalog.",
+      "winterEdit": "The current winter selection across tailoring, outerwear and knits.",
+      "tailoring": "Formal layers and softer structure for daily tailored outfits.",
+      "signInOrders": "Sign in to view your order timeline, delivery progress and past purchases.",
+      "savedAddresses": "Review saved addresses and account details before your next checkout.",
+      "orderHistory": "See every order, its current status and the items you already purchased.",
+      "profileDetails": "Update profile details that support future checkouts and delivery notices.",
+      "deliveryAddresses": "Review your shipping addresses before starting a new checkout."
+    }
+  },
+  "footer": {
+    "headline": "Apparel for long routes, precise cuts and checkout flows that hold."
+  },
+  "home": {
+    "marquee": [
+      "Free shipping from $110,000",
+      "3 interest-free installments on every order",
+      "Store pickup at no extra cost",
+      "6 installments from $250,000"
+    ],
+    "hero": {
+      "viewProducts": "View all products",
+      "slides": {
+        "sweaters": {
+          "eyebrow": "Winter knitwear",
+          "title": "Sharper layers for long winter lines.",
+          "description": "Sweaters, structured knits and darker textures built for cold days without losing shape.",
+          "primaryCta": "Shop sweaters"
+        },
+        "tailoring": {
+          "eyebrow": "Tailoring edit",
+          "title": "Formal cuts without the old uniform feel.",
+          "description": "Suits, jackets and dress trousers with cleaner lines for office, events and daily use.",
+          "primaryCta": "Shop tailoring"
+        },
+        "outerwear": {
+          "eyebrow": "Outerwear",
+          "title": "Soft volume, exact texture, darker tone.",
+          "description": "Coats and puffers with useful warmth, precise lengths and easy styling.",
+          "primaryCta": "Shop outerwear"
+        },
+        "jackets": {
+          "eyebrow": "Urban jackets",
+          "title": "Urban jackets tuned for movement and weight.",
+          "description": "Technical layers and denim jackets designed to keep the silhouette sharp.",
+          "primaryCta": "Shop jackets"
+        }
+      }
+    },
+    "featured": {
+      "eyebrow": "Featured products",
+      "title": "Current pieces with enough structure for daily wear.",
+      "empty": "Featured products will appear when the catalog is available."
+    },
+    "tailoring": {
+      "eyebrow": "Tailoring update",
+      "title": "Precision cuts with less ceremony.",
+      "description": "Suits, soft jackets and formal trousers shaped for daily use. The collection stays formal where it matters and lighter everywhere else.",
+      "suits": "Shop suits",
+      "jackets": "View jackets"
+    },
+    "cards": {
+      "stockTitle": "Stock-aware checkout",
+      "stockDescription": "Every selected size is guarded through the flow before payment closes.",
+      "seasonTitle": "Cold-season depth",
+      "seasonDescription": "Outerwear, knitwear and tailoring are staged as a coherent winter edit.",
+      "accountTitle": "Account continuity",
+      "accountDescription": "Orders, addresses and profile details stay organized without extra steps."
+    }
+  },
+  "products": {
+    "catalogEyebrow": "Catalog",
+    "directoryTitle": "Northlane Catalog",
+    "emptyTitle": "No pieces match this cut.",
+    "emptyDescription": "Change size, color or price filters to widen the collection.",
+    "sortLabel": "Sort",
+    "filtersTitle": "Filters",
+    "pagination": "Showing {from}-{to} of {total}",
+    "previous": "Previous",
+    "next": "Next",
+    "detail": {
+      "fit": "Fit",
+      "material": "Material",
+      "composition": "Composition",
+      "care": "Care",
+      "addToBag": "Add to bag",
+      "soldOut": "Sold out"
+    }
+  },
+  "auth": {
+    "loginEyebrow": "Account access",
+    "loginHeadline": "Return to your lane.",
+    "registerEyebrow": "New account",
+    "registerHeadline": "Build the wardrobe.",
+    "email": "Email",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "password": "Password",
+    "processing": "Processing",
+    "signIn": "Sign in",
+    "createAccount": "Create account",
+    "newHere": "New here?",
+    "alreadyAccount": "Already have an account?",
+    "welcomeBack": "Welcome back.",
+    "accountCreated": "Account created.",
+    "genericError": "Authentication failed. Check the form and retry."
+  },
+  "account": {
+    "overview": "Overview",
+    "privateEyebrow": "Private fitting room",
+    "signInTitle": "Sign in to continue.",
+    "signInDescription": "Your bag, addresses and order timeline stay behind the account boundary.",
+    "goToLogin": "Go to login",
+    "security": {
+      "eyebrow": "Account security",
+      "title": "Your account access is active.",
+      "signedInAs": "Signed in as",
+      "sessionStatus": "This device is signed in",
+      "accessLevel": "Access level",
+      "standard": "Standard account",
+      "admin": "Administrator",
+      "signOut": "Sign out on this device"
+    }
+  },
+  "cart": {
+    "title": "Your bag",
+    "eyebrow": "Bag",
+    "selected": "Selected pieces",
+    "emptyTitle": "Your bag is empty.",
+    "emptyDescription": "Add a product to begin checkout.",
+    "drawerTitle": "Your edit",
+    "close": "Close",
+    "subtotal": "Subtotal",
+    "clear": "Clear bag",
+    "viewBag": "View bag",
+    "shopProducts": "Shop products",
+    "continueShopping": "Continue shopping",
+    "checkout": "Checkout"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "eyebrow": "Checkout",
+    "reserve": "Reserve the order",
+    "address": "Shipping address",
+    "emptyTitle": "The bag is empty.",
+    "emptyDescription": "Checkout starts from the active bag snapshot.",
+    "creating": "Creating order",
+    "summary": "Order summary",
+    "placeOrder": "Place order",
+    "success": "Checkout started.",
+    "failure": "Checkout could not be completed."
+  },
+  "admin": {
+    "operations": "Operations",
+    "desk": "Admin desk",
+    "dashboard": "Dashboard",
+    "products": "Products",
+    "inventory": "Inventory",
+    "orders": "Orders",
+    "users": "Users",
+    "login": "Admin login",
+    "gateEyebrow": "Northlane control room",
+    "signInTitle": "Sign in before entering operations.",
+    "signInDescription": "Management APIs require an active admin session and the gateway enforces the admin guard.",
+    "forbiddenTitle": "Your account does not have admin access.",
+    "forbiddenDescription": "This workspace is reserved for catalog, stock and order operations.",
+    "returnStore": "Return to store"
+  },
+  "validation": {
+    "email": "Use a valid email.",
+    "passwordRequired": "Password is required.",
+    "passwordLength": "Use at least 8 characters.",
+    "firstName": "First name is required.",
+    "alias": "Alias is required.",
+    "city": "City is required.",
+    "phone": "Phone is required.",
+    "postalCode": "Postal code is required.",
+    "province": "Select a valid Argentine province.",
+    "recipient": "Recipient is required.",
+    "street": "Street is required.",
+    "streetNumber": "Street number is required."
+  },
+  "errors": {
+    "requestFailed": "The request could not be completed.",
+    "sessionExpired": "Session expired. Sign in again."
+  }
+}

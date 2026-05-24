@@ -1,6 +1,6 @@
 import type { ProductDto } from '@northlane/contracts';
 import Image from 'next/image';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { formatMoney } from '../../shared/format';
 
 export function ProductCard({ product }: Readonly<{ product: ProductDto }>) {

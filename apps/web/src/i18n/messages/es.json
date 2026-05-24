@@ -1,0 +1,261 @@
+{
+  "metadata": {
+    "defaultTitle": "Northlane Apparel",
+    "defaultDescription": "E-commerce premium de indumentaria con catalogo cuidado y checkout event-driven resiliente.",
+    "productsTitle": "Productos",
+    "productsDescription": "Compra indumentaria por categoria, talle, color, marca y precio.",
+    "productFallbackTitle": "Producto",
+    "cartTitle": "Bolsa",
+    "checkoutTitle": "Checkout",
+    "loginTitle": "Ingresar",
+    "registerTitle": "Registrarse",
+    "accountTitle": "Cuenta",
+    "profileTitle": "Perfil",
+    "addressesTitle": "Direcciones",
+    "ordersTitle": "Pedidos",
+    "orderDetailTitle": "Detalle del pedido",
+    "securityTitle": "Seguridad",
+    "categoryTitle": "Categoria",
+    "adminTitle": "Admin",
+    "adminProductsTitle": "Productos admin",
+    "adminOrdersTitle": "Pedidos admin",
+    "adminInventoryTitle": "Inventario admin",
+    "adminUsersTitle": "Usuarios admin",
+    "newProductTitle": "Nuevo producto",
+    "editProductTitle": "Editar producto"
+  },
+  "common": {
+    "account": "Cuenta",
+    "addresses": "Direcciones",
+    "admin": "Admin",
+    "bag": "Bolsa",
+    "checkout": "Checkout",
+    "loading": "Cargando",
+    "login": "Ingresar",
+    "logout": "Salir",
+    "orders": "Pedidos",
+    "products": "Productos",
+    "profile": "Perfil",
+    "register": "Registrarse",
+    "save": "Guardar",
+    "security": "Seguridad"
+  },
+  "navigation": {
+    "brandEyebrow": "Northlane",
+    "brandName": "Apparel",
+    "shop": "Tienda",
+    "categories": "Categorias",
+    "orders": "Pedidos",
+    "language": "Idioma",
+    "openBag": "Abrir bolsa",
+    "allProducts": "Todos los productos",
+    "newArrivals": "Novedades",
+    "winterEdit": "Edicion invierno",
+    "tailoring": "Sastreria",
+    "orderHistory": "Historial de pedidos",
+    "profileDetails": "Datos del perfil",
+    "deliveryAddresses": "Direcciones de entrega",
+    "signInOrders": "Ingresar para gestionar pedidos",
+    "savedAddresses": "Direcciones guardadas",
+    "catalogMap": "Mapa del catalogo",
+    "openDirectory": "Abrir catalogo completo",
+    "shopPanelEyebrow": "Comprar por intencion",
+    "shopPanelTitle": "Recorre el catalogo con contexto.",
+    "shopPanelSummary": "Entra al catalogo completo o accede directo a una seleccion mas especifica.",
+    "ordersSignedInEyebrow": "Tu cuenta",
+    "ordersGuestEyebrow": "Acceso a cuenta",
+    "ordersSignedInSummary": "Tu cuenta mantiene pedidos, direcciones y datos personales en un solo lugar.",
+    "ordersGuestSummary": "El historial de pedidos y las herramientas de cuenta estan disponibles al iniciar sesion.",
+    "categoriesTitle": "Navega categorias sin adivinar la ruta.",
+    "categoriesSummary": "La navegacion refleja la estructura real del catalogo que viene del backend, incluyendo subcategorias cuando existen.",
+    "categoriesLoading": "Las categorias se estan cargando desde el catalogo.",
+    "exploreCategory": "Explora toda la seleccion de {name}.",
+    "links": {
+      "allProducts": "El directorio completo con filtros, ordenamiento y paginacion.",
+      "newArrivals": "Una seleccion enfocada en las piezas mas recientes del catalogo.",
+      "winterEdit": "La seleccion actual de invierno entre sastreria, abrigos y knitwear.",
+      "tailoring": "Capas formales y estructura suave para looks diarios.",
+      "signInOrders": "Ingresa para ver tu linea de tiempo de pedidos, progreso de entrega y compras anteriores.",
+      "savedAddresses": "Revisa direcciones guardadas y datos de cuenta antes del proximo checkout.",
+      "orderHistory": "Consulta cada pedido, su estado actual y los productos comprados.",
+      "profileDetails": "Actualiza datos personales para futuros checkouts y avisos de entrega.",
+      "deliveryAddresses": "Revisa tus direcciones de envio antes de iniciar una nueva compra."
+    }
+  },
+  "footer": {
+    "headline": "Indumentaria para recorridos largos, cortes precisos y checkouts que sostienen la experiencia."
+  },
+  "home": {
+    "marquee": [
+      "Envio gratis desde $110.000",
+      "3 cuotas sin interes en todas las compras",
+      "Retiro en tienda sin cargo",
+      "6 cuotas desde $250.000"
+    ],
+    "hero": {
+      "viewProducts": "Ver todos los productos",
+      "slides": {
+        "sweaters": {
+          "eyebrow": "Knitwear de invierno",
+          "title": "Capas mas precisas para lineas largas de invierno.",
+          "description": "Sweaters, tejidos estructurados y texturas oscuras para dias frios sin perder forma.",
+          "primaryCta": "Comprar sweaters"
+        },
+        "tailoring": {
+          "eyebrow": "Edicion sastreria",
+          "title": "Cortes formales sin rigidez antigua.",
+          "description": "Trajes, sacos y pantalones de vestir con lineas limpias para oficina, eventos y uso diario.",
+          "primaryCta": "Comprar sastreria"
+        },
+        "outerwear": {
+          "eyebrow": "Abrigos",
+          "title": "Volumen suave, textura exacta, tonos mas profundos.",
+          "description": "Sobretodos y camperas con abrigo util, largos precisos y combinacion facil.",
+          "primaryCta": "Comprar abrigos"
+        },
+        "jackets": {
+          "eyebrow": "Camperas urbanas",
+          "title": "Camperas urbanas ajustadas a movimiento y peso.",
+          "description": "Capas tecnicas y denim pensadas para mantener una silueta prolija.",
+          "primaryCta": "Comprar camperas"
+        }
+      }
+    },
+    "featured": {
+      "eyebrow": "Productos destacados",
+      "title": "Piezas actuales con estructura suficiente para todos los dias.",
+      "empty": "Los productos destacados van a aparecer cuando el catalogo este disponible."
+    },
+    "tailoring": {
+      "eyebrow": "Actualizacion sastreria",
+      "title": "Cortes precisos con menos ceremonia.",
+      "description": "Trajes, sacos suaves y pantalones formales pensados para uso diario. La coleccion mantiene formalidad donde importa y se vuelve mas liviana en el resto.",
+      "suits": "Comprar trajes",
+      "jackets": "Ver sacos"
+    },
+    "cards": {
+      "stockTitle": "Checkout con control de stock",
+      "stockDescription": "Cada talle seleccionado queda protegido durante el flujo antes de cerrar el pago.",
+      "seasonTitle": "Profundidad de temporada",
+      "seasonDescription": "Abrigos, knitwear y sastreria se ordenan como una edicion coherente de invierno.",
+      "accountTitle": "Continuidad de cuenta",
+      "accountDescription": "Pedidos, direcciones y datos personales quedan organizados sin pasos extra."
+    }
+  },
+  "products": {
+    "catalogEyebrow": "Catalogo",
+    "directoryTitle": "Catalogo Northlane",
+    "emptyTitle": "No hay piezas para esta seleccion.",
+    "emptyDescription": "Cambia talle, color o precio para ampliar la coleccion.",
+    "sortLabel": "Ordenar",
+    "filtersTitle": "Filtros",
+    "pagination": "Mostrando {from}-{to} de {total}",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "detail": {
+      "fit": "Calce",
+      "material": "Material",
+      "composition": "Composicion",
+      "care": "Cuidado",
+      "addToBag": "Agregar a la bolsa",
+      "soldOut": "Sin stock"
+    }
+  },
+  "auth": {
+    "loginEyebrow": "Acceso a cuenta",
+    "loginHeadline": "Volver a tu cuenta.",
+    "registerEyebrow": "Nueva cuenta",
+    "registerHeadline": "Arma tu guardarropa.",
+    "email": "Email",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "password": "Contrasena",
+    "processing": "Procesando",
+    "signIn": "Ingresar",
+    "createAccount": "Crear cuenta",
+    "newHere": "Nuevo por aca?",
+    "alreadyAccount": "Ya tenes cuenta?",
+    "welcomeBack": "Sesion iniciada.",
+    "accountCreated": "Cuenta creada.",
+    "genericError": "No pudimos autenticarte. Revisa el formulario e intenta de nuevo."
+  },
+  "account": {
+    "overview": "Resumen",
+    "privateEyebrow": "Espacio privado",
+    "signInTitle": "Ingresa para continuar.",
+    "signInDescription": "Tu bolsa, direcciones e historial de pedidos se mantienen dentro de tu cuenta.",
+    "goToLogin": "Ir a ingresar",
+    "security": {
+      "eyebrow": "Seguridad de la cuenta",
+      "title": "Tu acceso esta activo.",
+      "signedInAs": "Sesion iniciada como",
+      "sessionStatus": "Este dispositivo tiene sesion iniciada",
+      "accessLevel": "Nivel de acceso",
+      "standard": "Cuenta estandar",
+      "admin": "Administrador",
+      "signOut": "Cerrar sesion en este dispositivo"
+    }
+  },
+  "cart": {
+    "title": "Tu bolsa",
+    "eyebrow": "Bolsa",
+    "selected": "Piezas seleccionadas",
+    "emptyTitle": "Tu bolsa esta vacia.",
+    "emptyDescription": "Agrega un producto para iniciar el checkout.",
+    "drawerTitle": "Tu seleccion",
+    "close": "Cerrar",
+    "subtotal": "Subtotal",
+    "clear": "Vaciar bolsa",
+    "viewBag": "Ver bolsa",
+    "shopProducts": "Comprar productos",
+    "continueShopping": "Seguir comprando",
+    "checkout": "Checkout"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "eyebrow": "Checkout",
+    "reserve": "Reservar pedido",
+    "address": "Direccion de envio",
+    "emptyTitle": "La bolsa esta vacia.",
+    "emptyDescription": "El checkout comienza desde la bolsa activa.",
+    "creating": "Creando pedido",
+    "summary": "Resumen del pedido",
+    "placeOrder": "Confirmar pedido",
+    "success": "Checkout iniciado.",
+    "failure": "No pudimos completar el checkout."
+  },
+  "admin": {
+    "operations": "Operaciones",
+    "desk": "Panel admin",
+    "dashboard": "Dashboard",
+    "products": "Productos",
+    "inventory": "Inventario",
+    "orders": "Pedidos",
+    "users": "Usuarios",
+    "login": "Ingreso admin",
+    "gateEyebrow": "Control Northlane",
+    "signInTitle": "Ingresa antes de entrar a operaciones.",
+    "signInDescription": "Las APIs de gestion requieren una sesion admin activa y el gateway aplica el control de acceso.",
+    "forbiddenTitle": "Tu cuenta no tiene acceso admin.",
+    "forbiddenDescription": "Este espacio esta reservado para operaciones de catalogo, stock y pedidos.",
+    "returnStore": "Volver a la tienda"
+  },
+  "validation": {
+    "email": "Usa un email valido.",
+    "passwordRequired": "La contrasena es obligatoria.",
+    "passwordLength": "Usa al menos 8 caracteres.",
+    "firstName": "El nombre es obligatorio.",
+    "alias": "El alias es obligatorio.",
+    "city": "La ciudad es obligatoria.",
+    "phone": "El telefono es obligatorio.",
+    "postalCode": "El codigo postal es obligatorio.",
+    "province": "Selecciona una provincia argentina valida.",
+    "recipient": "El destinatario es obligatorio.",
+    "street": "La calle es obligatoria.",
+    "streetNumber": "La altura es obligatoria."
+  },
+  "errors": {
+    "requestFailed": "No pudimos completar la solicitud.",
+    "sessionExpired": "La sesion expiro. Ingresa de nuevo."
+  }
+}

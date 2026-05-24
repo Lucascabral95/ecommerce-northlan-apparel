@@ -1,14 +1,17 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { Button } from '../../shared/ui/button';
 import { useCreateAddress } from './account-hooks';
 import { ARGENTINA_COUNTRY_NAME, ARGENTINA_PROVINCES } from './argentina-locations';
-import { addressSchema, type AddressValues } from './address-validation';
+import { createAddressSchema, type AddressValues } from './address-validation';
 
 export function AddressForm() {
+  const validation = useTranslations('validation');
   const mutation = useCreateAddress();
+  const addressSchema = createAddressSchema(validation);
   const form = useForm<AddressValues>({
     defaultValues: {
       alias: 'Home',

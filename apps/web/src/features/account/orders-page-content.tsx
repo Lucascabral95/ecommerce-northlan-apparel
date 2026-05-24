@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { formatDate, formatMoney } from '../../shared/format';
 import { EmptyState, ErrorState } from '../../shared/ui/states';
 import { useOrders } from './account-hooks';

@@ -1,12 +1,14 @@
 'use client';
 
 import type { ProductDto, ProductVariantDto } from '@northlane/contracts';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { formatMoney } from '../../shared/format';
 import { AddToCartButton } from '../cart/add-to-cart-button';
 import { VariantSelector } from './variant-selector';
 
 export function ProductDetailView({ product }: Readonly<{ product: ProductDto }>) {
+  const t = useTranslations('products.detail');
   const [selectedVariant, setSelectedVariant] = useState<ProductVariantDto | undefined>(
     () =>
       product.variants.find((variant) => variant.isActive && variant.availableStock > 0) ??
@@ -36,10 +38,10 @@ export function ProductDetailView({ product }: Readonly<{ product: ProductDto }>
         />
       </div>
       <dl className="mt-8 grid gap-4 border-t border-[var(--line)] pt-6 text-sm">
-        <Detail label="Fit" value={product.fit} />
-        <Detail label="Material" value={product.material} />
-        <Detail label="Composition" value={product.composition} />
-        <Detail label="Care" value={product.careInstructions} />
+        <Detail label={t('fit')} value={product.fit} />
+        <Detail label={t('material')} value={product.material} />
+        <Detail label={t('composition')} value={product.composition} />
+        <Detail label={t('care')} value={product.careInstructions} />
       </dl>
     </aside>
   );

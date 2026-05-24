@@ -1,6 +1,7 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
 import { formatMoney } from '../../shared/format';
 import { Button } from '../../shared/ui/button';
 import { EmptyState, ErrorState } from '../../shared/ui/states';
@@ -8,20 +9,21 @@ import { CartItem } from './cart-item';
 import { useCart, useClearCart } from './cart-hooks';
 
 export function CartPageContent() {
+  const t = useTranslations('cart');
   const cart = useCart();
   const clearCart = useClearCart();
 
   return (
     <section className="page-shell">
       <div className="mb-8">
-        <p className="eyebrow">Bag</p>
-        <h1 className="display-title mt-4 text-6xl md:text-8xl">Selected pieces</h1>
+        <p className="eyebrow">{t('eyebrow')}</p>
+        <h1 className="display-title mt-4 text-6xl md:text-8xl">{t('selected')}</h1>
       </div>
       {cart.error ? <ErrorState message={cart.error.message} /> : null}
       {cart.data?.items.length === 0 ? (
         <EmptyState
-          description="Select a size and color from a product page to build checkout."
-          title="Nothing in the bag yet."
+          description={t('emptyDescription')}
+          title={t('emptyTitle')}
         />
       ) : null}
       {cart.data && cart.data.items.length > 0 ? (
@@ -32,7 +34,7 @@ export function CartPageContent() {
             ))}
           </div>
           <aside className="surface h-fit rounded-[2rem] p-6">
-            <p className="eyebrow">Subtotal</p>
+            <p className="eyebrow">{t('subtotal')}</p>
             <p className="display-title mt-4 text-5xl">
               {formatMoney(cart.data.subtotal, cart.data.currency)}
             </p>
@@ -43,7 +45,7 @@ export function CartPageContent() {
               className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--ink)] text-sm font-semibold uppercase tracking-[0.12em] ![color:#fff]"
               href="/checkout"
             >
-              Checkout
+              {t('checkout')}
             </Link>
             <Button
               className="mt-3 w-full"
@@ -52,7 +54,7 @@ export function CartPageContent() {
               onClick={() => clearCart.mutate()}
               type="button"
             >
-              Clear bag
+              {t('clear')}
             </Button>
           </aside>
         </div>

@@ -2,22 +2,32 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Link } from '@/i18n/navigation';
+import { useRouter } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { ApiError } from '../../shared/api/client';
 import { Button } from '../../shared/ui/button';
 import { useToastStore } from '../../shared/ui/toast';
 import { login, register } from './auth-api';
 import { useAuthStore } from './auth-store';
-import { loginSchema, registerSchema, type LoginValues, type RegisterValues } from './auth-validation';
+import {
+  createLoginSchema,
+  createRegisterSchema,
+  type LoginValues,
+  type RegisterValues,
+} from './auth-validation';
 
 export function AuthForm({ mode }: Readonly<{ mode: 'login' | 'register' }>) {
+  const t = useTranslations('auth');
+  const validation = useTranslations('validation');
   const router = useRouter();
   const searchParams = useSearchParams();
   const setSession = useAuthStore((state) => state.setSession);
   const pushToast = useToastStore((state) => state.push);
-  const schema = mode === 'login' ? loginSchema : registerSchema;
+  const schema =
+    mode === 'login' ? createLoginSchema(validation) : createRegisterSchema(validation);
   const form = useForm<LoginValues | RegisterValues>({
     defaultValues: {
       email: '',
@@ -30,10 +40,10 @@ export function AuthForm({ mode }: Readonly<{ mode: 'login' | 'register' }>) {
   const mutation = useMutation({
     mutationFn: (values: LoginValues | RegisterValues) =>
       mode === 'login' ? login(values) : register(values),
-    onError: (error) => pushToast(resolveAuthErrorMessage(error), 'error'),
+    onError: (error) => pushToast(resolveAuthErrorMessage(error, t('genericError')), 'error'),
     onSuccess: (response) => {
       setSession(response);
-      pushToast(mode === 'login' ? 'Welcome back.' : 'Account created.');
+      pushToast(mode === 'login' ? t('welcomeBack') : t('accountCreated'));
       router.replace(resolveNextRoute(searchParams.get('next')));
     },
   });
@@ -43,7 +53,7 @@ export function AuthForm({ mode }: Readonly<{ mode: 'login' | 'register' }>) {
       className="surface grid gap-4 rounded-[2.2rem] p-6 sm:p-9"
       onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
     >
-      <Field error={form.formState.errors.email?.message} label="Email">
+      <Field error={form.formState.errors.email?.message} label={t('email')}>
         <input autoComplete="email" className="field" {...form.register('email')} />
       </Field>
       {mode === 'register' ? (
@@ -54,7 +64,7 @@ export function AuthForm({ mode }: Readonly<{ mode: 'login' | 'register' }>) {
                 ? form.formState.errors.firstName?.message
                 : undefined
             }
-            label="First name"
+            label={t('firstName')}
           >
             <input className="field" {...form.register('firstName')} />
           </Field>
@@ -64,13 +74,13 @@ export function AuthForm({ mode }: Readonly<{ mode: 'login' | 'register' }>) {
                 ? form.formState.errors.lastName?.message
                 : undefined
             }
-            label="Last name"
+            label={t('lastName')}
           >
             <input className="field" {...form.register('lastName')} />
           </Field>
         </div>
       ) : null}
-      <Field error={form.formState.errors.password?.message} label="Password">
+      <Field error={form.formState.errors.password?.message} label={t('password')}>
         <input
           autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
           className="field"
@@ -79,27 +89,27 @@ export function AuthForm({ mode }: Readonly<{ mode: 'login' | 'register' }>) {
         />
       </Field>
       <Button disabled={mutation.isPending} type="submit">
-        {mutation.isPending ? 'Processing' : mode === 'login' ? 'Sign in' : 'Create account'}
+        {mutation.isPending ? t('processing') : mode === 'login' ? t('signIn') : t('createAccount')}
       </Button>
       <p className="text-sm text-[var(--muted)]">
-        {mode === 'login' ? 'New here? ' : 'Already have an account? '}
+        {mode === 'login' ? `${t('newHere')} ` : `${t('alreadyAccount')} `}
         <Link
           className="font-semibold text-[var(--ink)] underline"
           href={mode === 'login' ? '/register' : '/login'}
         >
-          {mode === 'login' ? 'Register' : 'Login'}
+          {mode === 'login' ? t('createAccount') : t('signIn')}
         </Link>
       </p>
     </form>
   );
 }
 
-function resolveAuthErrorMessage(error: unknown): string {
+function resolveAuthErrorMessage(error: unknown, fallbackMessage: string): string {
   if (error instanceof ApiError && error.status < 500) {
     return error.message;
   }
 
-  return 'Authentication failed. Check the Gateway and service logs before retrying.';
+  return fallbackMessage;
 }
 
 function resolveNextRoute(next: string | null) {

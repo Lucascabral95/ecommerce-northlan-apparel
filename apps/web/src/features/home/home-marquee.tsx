@@ -1,11 +1,8 @@
-const marqueeItems = [
-  'Free shipping across Argentina on orders over ARS 110,000',
-  'Store pickup available in Buenos Aires',
-  '4 to 6 interest-free installments on selected tailoring',
-  'Winter tailoring, premium knitwear and daily layers',
-] as const;
+import { getTranslations } from 'next-intl/server';
 
-export function HomeMarquee() {
+export async function HomeMarquee() {
+  const t = await getTranslations('home');
+  const marqueeItems = t.raw('marquee') as string[];
   const trackItems = [...marqueeItems, ...marqueeItems];
 
   return (

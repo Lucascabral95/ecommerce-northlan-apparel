@@ -8,7 +8,7 @@ import type {
   ProductSeason,
   ProductType,
 } from '@northlane/contracts';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '../../shared/ui/button';

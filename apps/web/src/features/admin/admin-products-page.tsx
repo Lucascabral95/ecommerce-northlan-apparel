@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import type { ProductDto } from '@northlane/contracts';
 import { formatMoney } from '../../shared/format';
 import { Button } from '../../shared/ui/button';
