@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { RequestPaymentCommandPayload } from '@northlane/contracts';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PaymentService } from './payment.service';
 
 const BASE_PAYMENT: RequestPaymentCommandPayload = {
@@ -113,6 +113,74 @@ describe('PaymentService', () => {
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it('processes Mercado Pago webhooks idempotently', async () => {
+    config.providerMode = 'MERCADO_PAGO';
+    config.mercadoPagoAccessToken = 'test-access-token';
+    service = new PaymentService(config as never, prisma as never, rabbitMqClient as never);
+    prisma.payments.push({
+      amount: 180,
+      approvedAt: null,
+      cancelledAt: null,
+      checkoutUrl: 'https://mercadopago.test/checkout',
+      createdAt: new Date(),
+      currency: 'ARS',
+      expiredAt: null,
+      expiresAt: null,
+      externalReference: 'order-mp-1',
+      failureReason: null,
+      id: '000000000001-0000-4000-8000-000000000000',
+      idempotencyKey: 'order-mp-1:payment',
+      initPoint: 'https://mercadopago.test/checkout',
+      metadata: null,
+      orderId: 'order-mp-1',
+      provider: 'MERCADO_PAGO',
+      providerPaymentId: null,
+      providerPreferenceId: 'pref-1',
+      rawProviderStatus: 'preference_created',
+      rejectedAt: null,
+      requestHash: 'request-hash',
+      sandboxInitPoint: null,
+      status: 'PENDING',
+      updatedAt: new Date(),
+      userId: 'user-1',
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      json: async () => ({
+        currency_id: 'ARS',
+        external_reference: 'order-mp-1',
+        id: 123,
+        status: 'approved',
+        transaction_amount: 180,
+      }),
+      ok: true,
+    } as Response);
+
+    const firstResult = await service.processWebhook(
+      {
+        body: { action: 'payment.updated', data: { id: '123' }, type: 'payment' },
+        headers: { 'x-request-id': 'request-1' },
+        query: {},
+      },
+      testContext(),
+    );
+    const secondResult = await service.processWebhook(
+      {
+        body: { action: 'payment.updated', data: { id: '123' }, type: 'payment' },
+        headers: { 'x-request-id': 'request-1' },
+        query: {},
+      },
+      testContext(),
+    );
+
+    expect(firstResult).toMatchObject({ status: 'APPROVED', providerPaymentId: '123' });
+    expect(secondResult).toEqual({ ignored: true });
+    expect(rabbitMqClient.routingKeys.filter((key) => key === 'payment.event.payment_succeeded')).toHaveLength(1);
+  });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function testContext() {
@@ -125,7 +193,9 @@ function testContext() {
 class FakePaymentConfig {
   readonly mockFailureAmount = 13.37;
   readonly mockForceFailure = false;
-  readonly providerMode = 'MOCK';
+  mercadoPagoAccessToken: string | undefined;
+  readonly mercadoPagoWebhookSecret = undefined;
+  providerMode: 'MERCADO_PAGO' | 'MOCK' = 'MOCK';
 }
 
 class FakeRabbitMqClient {
@@ -138,48 +208,91 @@ class FakeRabbitMqClient {
 
 type FakePayment = {
   amount: number;
+  approvedAt: Date | null;
+  cancelledAt: Date | null;
+  checkoutUrl: string | null;
   createdAt: Date;
   currency: string;
+  expiredAt: Date | null;
+  expiresAt: Date | null;
+  externalReference: string | null;
   failureReason: string | null;
   id: string;
   idempotencyKey: string;
+  initPoint: string | null;
   metadata: unknown | null;
   orderId: string;
   provider: 'MERCADO_PAGO' | 'MOCK' | 'STRIPE';
   providerPaymentId: string | null;
+  providerPreferenceId: string | null;
+  rawProviderStatus: string | null;
+  rejectedAt: Date | null;
   requestHash: string;
-  status: 'APPROVED' | 'CANCELLED' | 'PENDING' | 'REFUNDED' | 'REJECTED';
+  sandboxInitPoint: string | null;
+  status: 'APPROVED' | 'CANCELLED' | 'EXPIRED' | 'IN_PROCESS' | 'PENDING' | 'REFUNDED' | 'REJECTED';
   updatedAt: Date;
   userId: string;
 };
 
 type FakePaymentEvent = {
   createdAt: Date;
+  eventType: string | null;
   id: string;
   paymentId: string;
   payload: unknown;
+  processedAt: Date | null;
+  provider: 'MERCADO_PAGO' | 'MOCK' | 'STRIPE' | null;
+  providerEventId: string | null;
   type: string;
+};
+
+type FakeWebhookEvent = {
+  action: string | null;
+  createdAt: Date;
+  deduplicationKey: string;
+  id: string;
+  payload: unknown;
+  paymentId: string | null;
+  processedAt: Date | null;
+  provider: 'MERCADO_PAGO' | 'MOCK' | 'STRIPE';
+  providerEventId: string | null;
+  resourceId: string | null;
+  signature: string | null;
+  status: 'FAILED' | 'IGNORED' | 'PROCESSED' | 'PROCESSING' | 'RECEIVED';
+  topic: string | null;
 };
 
 class FakePaymentPrisma {
   readonly events: FakePaymentEvent[] = [];
   readonly payments: FakePayment[] = [];
+  readonly webhookEvents: FakeWebhookEvent[] = [];
   private sequence = 0;
 
   readonly payment = {
     create: async ({ data }: { data: Partial<FakePayment> }) => {
       const payment: FakePayment = {
         amount: required(data.amount),
+        approvedAt: data.approvedAt ?? null,
+        cancelledAt: data.cancelledAt ?? null,
+        checkoutUrl: data.checkoutUrl ?? null,
         createdAt: new Date(),
         currency: required(data.currency),
+        expiredAt: data.expiredAt ?? null,
+        expiresAt: data.expiresAt ?? null,
+        externalReference: data.externalReference ?? null,
         failureReason: data.failureReason ?? null,
         id: this.nextId(),
         idempotencyKey: required(data.idempotencyKey),
+        initPoint: data.initPoint ?? null,
         metadata: data.metadata ?? null,
         orderId: required(data.orderId),
         provider: required(data.provider),
         providerPaymentId: data.providerPaymentId ?? null,
+        providerPreferenceId: data.providerPreferenceId ?? null,
+        rawProviderStatus: data.rawProviderStatus ?? null,
+        rejectedAt: data.rejectedAt ?? null,
         requestHash: required(data.requestHash),
+        sandboxInitPoint: data.sandboxInitPoint ?? null,
         status: data.status ?? 'PENDING',
         updatedAt: new Date(),
         userId: required(data.userId),
@@ -197,6 +310,11 @@ class FakePaymentPrisma {
           ),
         ) ?? null,
       ),
+    update: async ({ data, where }: { data: Partial<FakePayment>; where: { id: string } }) => {
+      const payment = required(this.payments.find((candidate) => candidate.id === where.id));
+      Object.assign(payment, data, { updatedAt: new Date() });
+      return clone(payment);
+    },
   };
 
   readonly paymentEvent = {
@@ -204,9 +322,53 @@ class FakePaymentPrisma {
       const event: FakePaymentEvent = {
         ...data,
         createdAt: new Date(),
+        eventType: data.eventType ?? null,
         id: this.nextId(),
+        processedAt: data.processedAt ?? null,
+        provider: data.provider ?? null,
+        providerEventId: data.providerEventId ?? null,
       };
       this.events.push(event);
+      return clone(event);
+    },
+  };
+
+  readonly webhookEvent = {
+    create: async ({
+      data,
+    }: {
+      data: Omit<FakeWebhookEvent, 'createdAt' | 'id' | 'paymentId' | 'processedAt'> &
+        Partial<Pick<FakeWebhookEvent, 'paymentId' | 'processedAt'>>;
+    }) => {
+      const event: FakeWebhookEvent = {
+        ...data,
+        action: data.action ?? null,
+        createdAt: new Date(),
+        id: this.nextId(),
+        paymentId: data.paymentId ?? null,
+        processedAt: data.processedAt ?? null,
+        providerEventId: data.providerEventId ?? null,
+        resourceId: data.resourceId ?? null,
+        signature: data.signature ?? null,
+        topic: data.topic ?? null,
+      };
+      this.webhookEvents.push(event);
+      return clone(event);
+    },
+    findUnique: async ({ where }: { where: { deduplicationKey: string } }) =>
+      clone(
+        this.webhookEvents.find((event) => event.deduplicationKey === where.deduplicationKey) ??
+          null,
+      ),
+    update: async ({
+      data,
+      where,
+    }: {
+      data: Partial<FakeWebhookEvent>;
+      where: { id: string };
+    }) => {
+      const event = required(this.webhookEvents.find((candidate) => candidate.id === where.id));
+      Object.assign(event, data);
       return clone(event);
     },
   };

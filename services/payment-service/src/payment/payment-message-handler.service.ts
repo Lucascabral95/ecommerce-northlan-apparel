@@ -2,8 +2,10 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import {
   EXCHANGE_NAMES,
   QUEUE_NAMES,
+  ProcessPaymentWebhookCommand,
   RequestPaymentCommand,
   ROUTING_KEYS,
+  SyncPaymentStatusCommand,
 } from '@northlane/contracts';
 import { RabbitMqClient } from '@northlane/shared';
 import { PaymentService } from './payment.service';
@@ -19,7 +21,9 @@ export class PaymentMessageHandlerService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    await this.rabbitMqClient.subscribe<RequestPaymentCommand>(
+    await this.rabbitMqClient.subscribe<
+      ProcessPaymentWebhookCommand | RequestPaymentCommand | SyncPaymentStatusCommand
+    >(
       {
         deadLetter: paymentDeadLetter(),
         exchange: EXCHANGE_NAMES.payment,
@@ -31,17 +35,31 @@ export class PaymentMessageHandlerService implements OnModuleInit {
           queue: QUEUE_NAMES.paymentRetry,
           routingKey: 'payment.command.retry',
         },
-        routingKeys: [ROUTING_KEYS.paymentCommandRequestPayment],
+        routingKeys: [
+          ROUTING_KEYS.paymentCommandProcessWebhook,
+          ROUTING_KEYS.paymentCommandRequestPayment,
+          ROUTING_KEYS.paymentCommandSyncPaymentStatus,
+        ],
       },
       async (command) => {
-        if (command.type !== ROUTING_KEYS.paymentCommandRequestPayment) {
-          throw new Error('Unsupported payment command.');
-        }
-
-        return this.paymentService.processPayment(command.payload, {
+        const context = {
           causationId: command.eventId,
           correlationId: command.correlationId,
-        });
+        };
+
+        if (command.type === ROUTING_KEYS.paymentCommandRequestPayment) {
+          return this.paymentService.processPayment(command.payload, context);
+        }
+
+        if (command.type === ROUTING_KEYS.paymentCommandProcessWebhook) {
+          return this.paymentService.processWebhook(command.payload, context);
+        }
+
+        if (command.type === ROUTING_KEYS.paymentCommandSyncPaymentStatus) {
+          return this.paymentService.syncPaymentStatus(command.payload, context);
+        }
+
+        throw new Error('Unsupported payment command.');
       },
     );
   }

@@ -37,15 +37,20 @@ Critical consumers also declare retry exchanges and DLX exchanges, for example `
 ## Checkout Saga
 
 1. API Gateway receives `POST /api/v1/checkout`.
-2. API Gateway publishes `order.command.create_order`.
+2. API Gateway sends `order.command.create_checkout_session` through RabbitMQ request/reply.
 3. Order Service creates an idempotent `PENDING` order with item snapshots.
-4. Order Service publishes `inventory.command.reserve_stock`.
+4. Order Service publishes or requests `inventory.command.reserve_stock`.
 5. Inventory Service reserves stock using PostgreSQL row locks and publishes `inventory.event.stock_reserved` or `inventory.event.stock_reservation_failed`.
 6. On `stock_reserved`, Order Service moves the order to `STOCK_RESERVED` and `PAYMENT_PENDING`, then publishes `payment.command.request_payment`.
-7. Payment Service processes MOCK payment idempotently and publishes `payment.event.payment_succeeded` or `payment.event.payment_failed`.
-8. On payment success, Order Service moves the order to `PAID` and `CONFIRMED`, publishes `inventory.command.confirm_stock`, publishes `cart.command.clear_cart` and emits `order.event.order_confirmed`.
-9. On payment failure, Order Service moves the order to `FAILED` and `CANCELLED`, publishes `inventory.command.release_stock` and emits `order.event.order_cancelled`.
-10. Notification Service consumes order and payment events, persists notification history and logs simulated email delivery.
+7. Payment Service uses the configured provider:
+   - `MOCK` approves or rejects immediately.
+   - `MERCADO_PAGO` creates a Checkout Pro preference and returns `checkoutUrl`, `providerPreferenceId`, `initPoint`, `sandboxInitPoint` and `externalReference`.
+8. API Gateway returns the checkout session to the frontend. The frontend may redirect to Mercado Pago when `checkoutUrl` is present.
+9. Mercado Pago sends webhooks to `POST /api/v1/payments/mercado-pago/webhook`; API Gateway delegates them to Payment Service with `payment.command.process_webhook`.
+10. Payment Service stores webhook events idempotently, validates the signature when configured, queries Mercado Pago for the real payment status and publishes the internal payment event.
+11. On payment success, Order Service moves the order to `PAID` and `CONFIRMED`, publishes `inventory.command.confirm_stock`, publishes `cart.command.clear_cart` and emits `order.event.order_confirmed`.
+12. On payment failure, rejection, cancellation or expiration, Order Service moves the order to the failed/cancelled path, publishes `inventory.command.release_stock` and emits `order.event.order_cancelled`.
+13. Notification Service consumes order and payment events, persists notification history and logs simulated email delivery.
 
 ## Retry And DLQ Strategy
 
@@ -63,4 +68,5 @@ Current retry defaults in handlers:
 - Checkout idempotency is owned by Order Service through `idempotency_keys`.
 - Stock reservation idempotency is owned by Inventory Service by `orderId`, `reservationId` and `idempotencyKey`.
 - Payment idempotency is owned by Payment Service by `orderId` and `idempotencyKey`.
+- Mercado Pago webhook idempotency is owned by Payment Service by provider event/resource deduplication keys.
 - Final order event handling is idempotent: repeated payment success/failure events do not double-confirm stock, double-release stock or clear the cart twice.

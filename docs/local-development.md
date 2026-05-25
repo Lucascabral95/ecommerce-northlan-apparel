@@ -44,9 +44,20 @@ Default infrastructure values:
 | `ORDER_SERVICE_PORT`                | `4106`                                                                                           |
 | `ORDER_DATABASE_URL`                | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=order_service`        |
 | `PAYMENT_SERVICE_PORT`              | `4107`                                                                                           |
+| `PAYMENT_PROVIDER`                  | `MOCK`                                                                                           |
 | `PAYMENT_PROVIDER_MODE`             | `MOCK`                                                                                           |
 | `PAYMENT_MOCK_FAILURE_AMOUNT`       | `13.37`                                                                                          |
 | `PAYMENT_MOCK_FORCE_FAILURE`        | `false`                                                                                          |
+| `FRONTEND_BASE_URL`                 | `http://localhost:3000`                                                                          |
+| `API_GATEWAY_BASE_URL`              | `http://localhost:4000/api/v1`                                                                   |
+| `MERCADO_PAGO_ACCESS_TOKEN`         | empty                                                                                            |
+| `MERCADO_PAGO_PUBLIC_KEY`           | empty                                                                                            |
+| `MERCADO_PAGO_WEBHOOK_SECRET`       | empty                                                                                            |
+| `MERCADO_PAGO_WEBHOOK_URL`          | `http://localhost:4000/api/v1/payments/mercado-pago/webhook`                                     |
+| `MERCADO_PAGO_SUCCESS_URL`          | `http://localhost:3000/es/payment/success`                                                       |
+| `MERCADO_PAGO_FAILURE_URL`          | `http://localhost:3000/es/payment/failure`                                                       |
+| `MERCADO_PAGO_PENDING_URL`          | `http://localhost:3000/es/payment/pending`                                                       |
+| `MERCADO_PAGO_NOTIFICATION_URL`     | `http://localhost:4000/api/v1/payments/mercado-pago/webhook`                                     |
 | `PAYMENT_DATABASE_URL`              | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=payment_service`      |
 | `NOTIFICATION_SERVICE_PORT`         | `4108`                                                                                           |
 | `NOTIFICATION_DATABASE_URL`         | `postgresql://northlane:northlane@localhost:5432/northlane_platform?schema=notification_service` |
@@ -226,12 +237,17 @@ The required URLs are `AUTH_DATABASE_URL`, `USER_DATABASE_URL`, `CATALOG_DATABAS
 ## Phase 10 Payment Flow
 
 1. `payment-service` consumes `payment.command.request_payment` from `payment.exchange`.
-2. Only `provider: MOCK` is accepted in this phase. Stripe and Mercado Pago remain intentionally out of scope.
+2. `PAYMENT_PROVIDER=MOCK` keeps local development deterministic and remains the default.
 3. Payment requests are persisted in the `payment_service` schema with idempotency by `orderId` and `idempotencyKey`.
 4. Repeating the same `orderId`, `idempotencyKey` and payload returns the original payment without creating duplicate rows or events.
 5. Reusing the same `orderId` or `idempotencyKey` with a different payload returns an idempotency conflict.
 6. A normal MOCK payment is saved as `APPROVED` and publishes `payment.event.payment_succeeded`.
 7. A MOCK payment is saved as `REJECTED` and publishes `payment.event.payment_failed` when `metadata.simulateFailure`, `metadata.forceFailure`, `metadata.mockOutcome: "REJECTED"` or the configured `PAYMENT_MOCK_FAILURE_AMOUNT` is used.
+8. `PAYMENT_PROVIDER=MERCADO_PAGO` creates a Checkout Pro preference and returns a `checkoutUrl` to the frontend.
+9. Mercado Pago webhooks enter through `POST /api/v1/payments/mercado-pago/webhook`; API Gateway delegates processing to Payment Service through RabbitMQ.
+10. Payment Service stores webhook events idempotently, consults Mercado Pago for the real payment status and only then publishes final payment events.
+
+For Mercado Pago sandbox testing, configure `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_PUBLIC_KEY` and public webhook/back URLs. Local webhook testing usually requires a tunnel such as ngrok or cloudflared because Mercado Pago must call the API Gateway from the public internet.
 
 ## Phase 11 Notification Flow
 

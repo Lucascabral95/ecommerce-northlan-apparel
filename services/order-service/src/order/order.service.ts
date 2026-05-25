@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import {
   CartDto,
+  CheckoutSessionDto,
+  CreateCheckoutSessionCommandPayload,
   CreateOrderCommandPayload,
   EXCHANGE_NAMES,
   GetOrderCommandPayload,
@@ -13,9 +15,14 @@ import {
   OrderDto,
   OrderStatus,
   OrderStatusChangedEventPayload,
+  PaymentPendingEventPayload,
+  PaymentPreferenceItemPayload,
   PaymentFailedEventPayload,
+  PaymentProvider,
   PaymentSucceededEventPayload,
+  PaymentDto,
   ROUTING_KEYS,
+  StockReservationDto,
   StockReservationFailedEventPayload,
   StockReservedEventPayload,
   UpdateOrderStatusCommandPayload,
@@ -24,6 +31,7 @@ import { RabbitMqClient } from '@northlane/shared';
 import { createHash, randomUUID } from 'node:crypto';
 import { Order, Prisma, PrismaClient } from '../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
+import { OrderServiceConfigService } from '../config/order-service.config';
 import { CartClientService } from './cart-client.service';
 import { createOrderMessageEnvelope, MessageContext } from './order.events';
 import { mapOrder, OrderWithRelations } from './order.mapper';
@@ -50,6 +58,7 @@ const ORDER_INCLUDE = {
 export class OrderService {
   constructor(
     private readonly cartClient: CartClientService,
+    private readonly config: OrderServiceConfigService,
     private readonly prisma: PrismaService,
     private readonly rabbitMqClient: RabbitMqClient,
   ) {}
@@ -144,6 +153,38 @@ export class OrderService {
     }
 
     return mapOrder(result.order);
+  }
+
+  async createCheckoutSession(
+    payload: CreateCheckoutSessionCommandPayload,
+    context: MessageContext,
+  ): Promise<CheckoutSessionDto> {
+    const createdOrder = await this.createOrder(payload, context);
+    let order = await this.fetchOrder(this.prisma, createdOrder.id);
+
+    if (order.status === 'PENDING') {
+      await this.requestStockReservation(order, payload.idempotencyKey, context);
+      order = await this.markOrderPaymentPending(order.id, context);
+    }
+
+    if (order.status !== 'PAYMENT_PENDING' && order.status !== 'STOCK_RESERVED') {
+      return {
+        order: mapOrder(order),
+        paymentProvider: this.config.paymentProvider,
+        status: 'ORDER_CREATED',
+      };
+    }
+
+    const payment = await this.requestPayment(order, context);
+    const refreshedOrder = await this.fetchOrder(this.prisma, order.id);
+
+    return {
+      checkoutUrl: payment.checkoutUrl,
+      order: mapOrder(refreshedOrder),
+      payment,
+      paymentProvider: payment.provider,
+      status: payment.checkoutUrl ? 'PAYMENT_READY' : 'MOCK_PROCESSED',
+    };
   }
 
   async listOrders(payload: ListOrdersCommandPayload): Promise<readonly OrderDto[]> {
@@ -282,7 +323,7 @@ export class OrderService {
 
       if (currentOrder.status !== 'PAID') {
         await this.transitionStatus(tx, currentOrder, 'PAID', {
-          reason: `Mock payment ${payload.paymentId} was approved.`,
+          reason: `Payment ${payload.paymentId} was approved.`,
         });
         currentOrder = await tx.order.findUniqueOrThrow({ where: { id: existingOrder.id } });
       }
@@ -348,6 +389,38 @@ export class OrderService {
     await this.publishStatusChanged(order, context);
     await this.publishOrderLifecycleEvent(order, ROUTING_KEYS.orderEventOrderCancelled, context);
     await this.publishReleaseStockCommand(order, context);
+  }
+
+  async handlePaymentPending(
+    payload: PaymentPendingEventPayload,
+    context: MessageContext,
+  ): Promise<void> {
+    const order = await this.prisma.$transaction(async (tx) => {
+      const existingOrder = await tx.order.findUnique({ where: { id: payload.orderId } });
+      if (!existingOrder || isTerminalOrder(existingOrder.status)) {
+        return undefined;
+      }
+
+      const currentOrder = await tx.order.update({
+        data: {
+          paymentId: payload.paymentId,
+          paymentStatus: payload.rawProviderStatus ?? 'PENDING',
+        },
+        where: { id: existingOrder.id },
+      });
+
+      if (currentOrder.status !== 'PAYMENT_PENDING') {
+        await this.transitionStatus(tx, currentOrder, 'PAYMENT_PENDING', {
+          reason: `Payment ${payload.paymentId} is pending provider confirmation.`,
+        });
+      }
+
+      return this.fetchOrder(tx, existingOrder.id);
+    });
+
+    if (order) {
+      await this.publishStatusChanged(order, context);
+    }
   }
 
   private async publishOrderLifecycleEvent(
@@ -534,6 +607,64 @@ export class OrderService {
     });
   }
 
+  private async requestStockReservation(
+    order: OrderWithRelations,
+    idempotencyKey: string,
+    context: MessageContext,
+  ): Promise<StockReservationDto> {
+    return this.rabbitMqClient.request<StockReservationDto>({
+      correlationId: context.correlationId,
+      exchange: EXCHANGE_NAMES.inventory,
+      message: createOrderMessageEnvelope(
+        ROUTING_KEYS.inventoryCommandReserveStock,
+        buildReserveStockPayload(order, idempotencyKey),
+        context,
+      ),
+      routingKey: ROUTING_KEYS.inventoryCommandReserveStock,
+      timeoutMs: 10_000,
+    });
+  }
+
+  private async markOrderPaymentPending(
+    orderId: string,
+    context: MessageContext,
+  ): Promise<OrderWithRelations> {
+    const order = await this.prisma.$transaction(async (tx) => {
+      const existingOrder = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
+      if (existingOrder.status === 'PENDING') {
+        await this.transitionStatus(tx, existingOrder, 'STOCK_RESERVED', {
+          reason: 'Stock reservation completed during checkout session creation.',
+        });
+        const stockReservedOrder = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
+        await this.transitionStatus(tx, stockReservedOrder, 'PAYMENT_PENDING', {
+          reason: 'Payment request prepared after stock reservation.',
+        });
+      }
+
+      return this.fetchOrder(tx, orderId);
+    });
+
+    await this.publishStatusChanged(order, context);
+    return order;
+  }
+
+  private async requestPayment(
+    order: OrderWithRelations,
+    context: MessageContext,
+  ): Promise<PaymentDto> {
+    return this.rabbitMqClient.request<PaymentDto>({
+      correlationId: context.correlationId,
+      exchange: EXCHANGE_NAMES.payment,
+      message: createOrderMessageEnvelope(
+        ROUTING_KEYS.paymentCommandRequestPayment,
+        buildPaymentRequestPayload(order, this.config.paymentProvider),
+        context,
+      ),
+      routingKey: ROUTING_KEYS.paymentCommandRequestPayment,
+      timeoutMs: 15_000,
+    });
+  }
+
   private async publishPaymentRequestCommand(
     order: OrderWithRelations,
     context: MessageContext,
@@ -544,12 +675,7 @@ export class OrderService {
       message: createOrderMessageEnvelope(
         ROUTING_KEYS.paymentCommandRequestPayment,
         {
-          amount: toNumber(order.grandTotal),
-          currency: order.currency,
-          idempotencyKey: `${order.idempotencyKey}:payment`,
-          orderId: order.id,
-          provider: 'MOCK',
-          userId: order.userId,
+          ...buildPaymentRequestPayload(order, this.config.paymentProvider),
         },
         context,
       ),
@@ -610,4 +736,40 @@ function isTerminalOrder(status: OrderStatus): boolean {
 
 function canApplyPaymentResult(status: OrderStatus): boolean {
   return status === 'PAYMENT_PENDING' || status === 'STOCK_RESERVED' || status === 'PAID';
+}
+
+function buildReserveStockPayload(order: OrderWithRelations, idempotencyKey: string) {
+  return {
+    expiresInSeconds: 900,
+    idempotencyKey,
+    items: order.items.map((item) => ({
+      quantity: item.quantity,
+      sku: item.sku,
+      variantId: item.variantId,
+    })),
+    orderId: order.id,
+    userId: order.userId,
+  };
+}
+
+function buildPaymentRequestPayload(order: OrderWithRelations, provider: PaymentProvider) {
+  return {
+    amount: toNumber(order.grandTotal),
+    currency: order.currency,
+    idempotencyKey: `${order.idempotencyKey}:payment`,
+    items: buildPaymentItems(order),
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    provider,
+    userId: order.userId,
+  };
+}
+
+function buildPaymentItems(order: OrderWithRelations): readonly PaymentPreferenceItemPayload[] {
+  return order.items.map((item) => ({
+    quantity: item.quantity,
+    sku: item.sku,
+    title: item.productTitle,
+    unitPrice: toNumber(item.unitPrice),
+  }));
 }

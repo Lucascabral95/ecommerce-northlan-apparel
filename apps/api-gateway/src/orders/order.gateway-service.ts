@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  CheckoutSessionDto,
+  CreateCheckoutSessionCommandPayload,
   CreateOrderCommandPayload,
   EXCHANGE_NAMES,
   GetOrderCommandPayload,
@@ -17,12 +19,14 @@ import { RabbitMqClient } from '@northlane/shared';
 import { createGatewayCommandEnvelope } from '../messaging/command-envelope';
 
 type OrderRoutingKey =
+  | typeof ROUTING_KEYS.orderCommandCreateCheckoutSession
   | typeof ROUTING_KEYS.orderCommandCreateOrder
   | typeof ROUTING_KEYS.orderCommandGetOrder
   | typeof ROUTING_KEYS.orderCommandListOrders
   | typeof ROUTING_KEYS.orderCommandUpdateStatus;
 
 type OrderCommandPayload =
+  | CreateCheckoutSessionCommandPayload
   | CreateOrderCommandPayload
   | GetOrderCommandPayload
   | ListOrdersCommandPayload
@@ -34,6 +38,17 @@ export class OrderGatewayService {
 
   createOrder(payload: CreateOrderCommandPayload, correlationId: string): Promise<OrderDto> {
     return this.requestOrder(ROUTING_KEYS.orderCommandCreateOrder, payload, correlationId);
+  }
+
+  createCheckoutSession(
+    payload: CreateCheckoutSessionCommandPayload,
+    correlationId: string,
+  ): Promise<CheckoutSessionDto> {
+    return this.requestCheckoutSession(
+      ROUTING_KEYS.orderCommandCreateCheckoutSession,
+      payload,
+      correlationId,
+    );
   }
 
   listOrders(
@@ -62,6 +77,24 @@ export class OrderGatewayService {
         exchange: EXCHANGE_NAMES.order,
         message: createGatewayCommandEnvelope(routingKey, payload, correlationId),
         routingKey,
+      });
+    } catch (error) {
+      throw mapRpcError(error);
+    }
+  }
+
+  private async requestCheckoutSession(
+    routingKey: typeof ROUTING_KEYS.orderCommandCreateCheckoutSession,
+    payload: CreateCheckoutSessionCommandPayload,
+    correlationId: string,
+  ): Promise<CheckoutSessionDto> {
+    try {
+      return await this.rabbitMqClient.request<CheckoutSessionDto>({
+        correlationId,
+        exchange: EXCHANGE_NAMES.order,
+        message: createGatewayCommandEnvelope(routingKey, payload, correlationId),
+        routingKey,
+        timeoutMs: 20_000,
       });
     } catch (error) {
       throw mapRpcError(error);

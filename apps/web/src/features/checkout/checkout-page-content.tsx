@@ -92,7 +92,14 @@ export function CheckoutPageContent() {
                     shippingAddressId: addressId ?? defaultAddress?.id,
                   },
                   {
-                    onSuccess: (order) => router.push(`/account/orders/${order.id}`),
+                    onSuccess: (session) => {
+                      if (session.checkoutUrl) {
+                        window.location.assign(session.checkoutUrl);
+                        return;
+                      }
+
+                      router.push(`/account/orders/${session.order.id}`);
+                    },
                   },
                 );
               }}

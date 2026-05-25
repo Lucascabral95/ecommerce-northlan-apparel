@@ -18,7 +18,7 @@ Implemented now:
 - Inventory Service with Prisma-owned inventory items, stock reservations, stock movements, row-level locking, reservation expiration, idempotency and stock events.
 - Cart Service with Prisma-owned carts and cart items, product snapshots and catalog validation through RabbitMQ request/reply.
 - Order Service with Prisma-owned orders, order items, status history, checkout idempotency and snapshot-based order history.
-- Payment Service with Prisma-owned payments, payment events, MOCK approval/rejection rules and command idempotency.
+- Payment Service with Prisma-owned payments, payment events, provider strategy, MOCK approval/rejection rules, Mercado Pago Checkout Pro preference creation, webhook idempotency and command idempotency.
 - Notification Service with Prisma-owned notification history, simulated email logs and a RabbitMQ DLQ for failed notification events.
 - Event-driven checkout completion across order, inventory, payment, cart and notification services.
 - Critical automated tests for auth, user profiles, catalog creation, cart, inventory, order idempotency, checkout success/failure, RabbitMQ handlers, API Gateway guards and frontend form validation.
@@ -273,7 +273,8 @@ The public HTTP boundary is available under `/api/v1`.
 | `PATCH /api/v1/cart/items/:itemId`       | Update cart item quantity.                                                                                                                   |
 | `DELETE /api/v1/cart/items/:itemId`      | Remove a cart item.                                                                                                                          |
 | `DELETE /api/v1/cart`                    | Clear the active cart.                                                                                                                       |
-| `POST /api/v1/checkout`                  | Create an idempotent base order from the authenticated user's active cart. Requires `Idempotency-Key` header or `idempotencyKey` body field. |
+| `POST /api/v1/checkout`                  | Create an idempotent checkout session from the authenticated user's active cart. In MOCK mode it completes through the internal saga; in Mercado Pago mode it returns a `checkoutUrl` for Checkout Pro redirection. Requires `Idempotency-Key` header or `idempotencyKey` body field. |
+| `POST /api/v1/payments/mercado-pago/webhook` | Public Mercado Pago webhook entrypoint. API Gateway delegates processing to Payment Service through RabbitMQ. |
 | `GET /api/v1/orders`                     | List the authenticated user's order history.                                                                                                 |
 | `GET /api/v1/orders/:id`                 | Get an authenticated user's order detail with item snapshots and status history.                                                             |
 | `GET /api/v1/admin/orders`               | List all orders. Requires ADMIN JWT.                                                                                                         |
@@ -295,7 +296,7 @@ Every HTTP response includes or propagates `x-correlation-id`. Request logs are 
 - `inventory-service`: stock ownership and reservations.
 - `cart-service`: user carts and cart item snapshots.
 - `order-service`: checkout saga state and order history.
-- `payment-service`: MOCK payment processing and payment event history.
+- `payment-service`: payment provider ownership, MOCK payments, Mercado Pago Checkout Pro preferences, webhook processing and payment event history.
 - `notification-service`: email and notification history.
 
 ## Development Notes
@@ -320,6 +321,8 @@ RabbitMQ is available locally as infrastructure and is used by the auth/user/cat
 
 ## Checkout Saga
 
-`POST /api/v1/checkout` publishes `order.command.create_order`. Order Service creates the `PENDING` order idempotently, publishes `inventory.command.reserve_stock`, reacts to `inventory.event.stock_reserved`, moves the order through `STOCK_RESERVED` and `PAYMENT_PENDING`, then publishes `payment.command.request_payment`.
+`POST /api/v1/checkout` publishes `order.command.create_checkout_session`. Order Service creates the `PENDING` order idempotently, reserves stock, moves the order through `STOCK_RESERVED` and `PAYMENT_PENDING`, then requests payment through `payment.command.request_payment`.
 
-Payment Service processes MOCK payment idempotently and publishes either `payment.event.payment_succeeded` or `payment.event.payment_failed`. Success moves the order to `PAID` and `CONFIRMED`, publishes `inventory.command.confirm_stock`, clears the cart through `cart.command.clear_cart` and emits `order.event.order_confirmed`. Failure moves the order to `FAILED` and `CANCELLED`, publishes `inventory.command.release_stock` and emits `order.event.order_cancelled`.
+With `PAYMENT_PROVIDER=MOCK`, Payment Service approves or rejects the payment immediately and publishes `payment.event.payment_succeeded` or `payment.event.payment_failed`. With `PAYMENT_PROVIDER=MERCADO_PAGO`, Payment Service creates a Checkout Pro preference, stores `preferenceId`, `initPoint`, `sandboxInitPoint` and `externalReference`, then returns `checkoutUrl` to the frontend. The browser redirect is not trusted as payment proof; Mercado Pago webhooks enter through API Gateway and Payment Service consults the provider before publishing final payment events.
+
+Success moves the order to `PAID` and `CONFIRMED`, publishes `inventory.command.confirm_stock`, clears the cart through `cart.command.clear_cart` and emits `order.event.order_confirmed`. Failure, cancellation or expiration moves the order to a failed/cancelled path, publishes `inventory.command.release_stock` and emits `order.event.order_cancelled`.

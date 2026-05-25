@@ -7,7 +7,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { OrderDto } from '@northlane/contracts';
+import { CheckoutSessionDto } from '@northlane/contracts';
 import { getCorrelationId } from '@northlane/shared';
 import { AuthenticatedRequest } from '../security/authenticated-request';
 import { JwtAuthGuard } from '../security/jwt-auth.guard';
@@ -24,13 +24,13 @@ export class CheckoutController {
     @Body() body: CheckoutRequestDto,
     @Headers('idempotency-key') idempotencyKeyHeader: string | undefined,
     @Req() request: AuthenticatedRequest,
-  ): Promise<OrderDto> {
+  ): Promise<CheckoutSessionDto> {
     const idempotencyKey = body.idempotencyKey ?? idempotencyKeyHeader;
     if (!idempotencyKey) {
       throw new BadRequestException('Checkout idempotency key is required.');
     }
 
-    return this.orderGatewayService.createOrder(
+    return this.orderGatewayService.createCheckoutSession(
       {
         billingAddressSnapshot: body.billingAddressSnapshot,
         idempotencyKey,

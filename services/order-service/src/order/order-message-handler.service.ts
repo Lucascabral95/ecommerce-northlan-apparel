@@ -1,10 +1,15 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import {
   CreateOrderCommand,
+  CreateCheckoutSessionCommand,
   EXCHANGE_NAMES,
   GetOrderCommand,
   ListOrdersCommand,
+  PaymentCancelledEvent,
+  PaymentExpiredEvent,
   PaymentFailedEvent,
+  PaymentPendingEvent,
+  PaymentRejectedEvent,
   PaymentSucceededEvent,
   QUEUE_NAMES,
   ROUTING_KEYS,
@@ -16,12 +21,19 @@ import { RabbitMqClient } from '@northlane/shared';
 import { OrderService } from './order.service';
 
 type OrderCommand =
+  | CreateCheckoutSessionCommand
   | CreateOrderCommand
   | GetOrderCommand
   | ListOrdersCommand
   | UpdateOrderStatusCommand;
 type InventoryReservationEvent = StockReservationFailedEvent | StockReservedEvent;
-type PaymentEvent = PaymentFailedEvent | PaymentSucceededEvent;
+type PaymentEvent =
+  | PaymentCancelledEvent
+  | PaymentExpiredEvent
+  | PaymentFailedEvent
+  | PaymentPendingEvent
+  | PaymentRejectedEvent
+  | PaymentSucceededEvent;
 
 const RETRY_DELAY_MS = 5_000;
 const MAX_RETRY_ATTEMPTS = 3;
@@ -54,6 +66,7 @@ export class OrderMessageHandlerService implements OnModuleInit {
         },
         routingKeys: [
           ROUTING_KEYS.orderCommandCreateOrder,
+          ROUTING_KEYS.orderCommandCreateCheckoutSession,
           ROUTING_KEYS.orderCommandGetOrder,
           ROUTING_KEYS.orderCommandListOrders,
           ROUTING_KEYS.orderCommandUpdateStatus,
@@ -67,6 +80,10 @@ export class OrderMessageHandlerService implements OnModuleInit {
 
         if (command.type === ROUTING_KEYS.orderCommandCreateOrder) {
           return this.orderService.createOrder(command.payload, context);
+        }
+
+        if (command.type === ROUTING_KEYS.orderCommandCreateCheckoutSession) {
+          return this.orderService.createCheckoutSession(command.payload, context);
         }
 
         if (command.type === ROUTING_KEYS.orderCommandListOrders) {
@@ -140,6 +157,10 @@ export class OrderMessageHandlerService implements OnModuleInit {
         },
         routingKeys: [
           ROUTING_KEYS.paymentEventPaymentFailed,
+          ROUTING_KEYS.paymentEventPaymentCancelled,
+          ROUTING_KEYS.paymentEventPaymentExpired,
+          ROUTING_KEYS.paymentEventPaymentPending,
+          ROUTING_KEYS.paymentEventPaymentRejected,
           ROUTING_KEYS.paymentEventPaymentSucceeded,
         ],
       },
@@ -154,7 +175,17 @@ export class OrderMessageHandlerService implements OnModuleInit {
           return { handled: true };
         }
 
-        if (event.type === ROUTING_KEYS.paymentEventPaymentFailed) {
+        if (event.type === ROUTING_KEYS.paymentEventPaymentPending) {
+          await this.orderService.handlePaymentPending(event.payload, context);
+          return { handled: true };
+        }
+
+        if (
+          event.type === ROUTING_KEYS.paymentEventPaymentCancelled ||
+          event.type === ROUTING_KEYS.paymentEventPaymentExpired ||
+          event.type === ROUTING_KEYS.paymentEventPaymentFailed ||
+          event.type === ROUTING_KEYS.paymentEventPaymentRejected
+        ) {
           await this.orderService.handlePaymentFailed(event.payload, context);
           return { handled: true };
         }
