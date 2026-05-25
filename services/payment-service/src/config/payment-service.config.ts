@@ -6,10 +6,20 @@ import {
   requireStringEnv,
 } from '@northlane/shared';
 
-export type PaymentProviderMode = 'MOCK';
+export type PaymentProviderMode = 'MERCADO_PAGO' | 'MOCK';
 
 export type PaymentServiceConfig = Readonly<{
+  apiGatewayBaseUrl: string;
   databaseUrl: string;
+  frontendBaseUrl: string;
+  mercadoPagoAccessToken?: string;
+  mercadoPagoFailureUrl?: string;
+  mercadoPagoNotificationUrl?: string;
+  mercadoPagoPendingUrl?: string;
+  mercadoPagoPublicKey?: string;
+  mercadoPagoSuccessUrl?: string;
+  mercadoPagoWebhookSecret?: string;
+  mercadoPagoWebhookUrl?: string;
   mockFailureAmount: number;
   mockForceFailure: boolean;
   port: number;
@@ -24,6 +34,46 @@ export class PaymentServiceConfigService {
 
   get mockFailureAmount(): number {
     return this.config.mockFailureAmount;
+  }
+
+  get apiGatewayBaseUrl(): string {
+    return this.config.apiGatewayBaseUrl;
+  }
+
+  get frontendBaseUrl(): string {
+    return this.config.frontendBaseUrl;
+  }
+
+  get mercadoPagoAccessToken(): string | undefined {
+    return this.config.mercadoPagoAccessToken;
+  }
+
+  get mercadoPagoFailureUrl(): string | undefined {
+    return this.config.mercadoPagoFailureUrl;
+  }
+
+  get mercadoPagoNotificationUrl(): string | undefined {
+    return this.config.mercadoPagoNotificationUrl;
+  }
+
+  get mercadoPagoPendingUrl(): string | undefined {
+    return this.config.mercadoPagoPendingUrl;
+  }
+
+  get mercadoPagoPublicKey(): string | undefined {
+    return this.config.mercadoPagoPublicKey;
+  }
+
+  get mercadoPagoSuccessUrl(): string | undefined {
+    return this.config.mercadoPagoSuccessUrl;
+  }
+
+  get mercadoPagoWebhookSecret(): string | undefined {
+    return this.config.mercadoPagoWebhookSecret;
+  }
+
+  get mercadoPagoWebhookUrl(): string | undefined {
+    return this.config.mercadoPagoWebhookUrl;
   }
 
   get mockForceFailure(): boolean {
@@ -50,8 +100,33 @@ export class PaymentServiceConfigService {
 export function loadPaymentServiceConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): PaymentServiceConfig {
+  const providerMode = parseEnumEnv(
+    'PAYMENT_PROVIDER',
+    env.PAYMENT_PROVIDER ?? env.PAYMENT_PROVIDER_MODE,
+    ['MOCK', 'MERCADO_PAGO'],
+    'MOCK',
+  );
+  const apiGatewayBaseUrl = env.API_GATEWAY_BASE_URL ?? 'http://localhost:4000/api/v1';
+  const frontendBaseUrl = env.FRONTEND_BASE_URL ?? 'http://localhost:3000';
+  const mercadoPagoAccessToken = optionalStringEnv(env.MERCADO_PAGO_ACCESS_TOKEN);
+  const mercadoPagoWebhookSecret = optionalStringEnv(env.MERCADO_PAGO_WEBHOOK_SECRET);
+
+  if (providerMode === 'MERCADO_PAGO' && !mercadoPagoAccessToken) {
+    throw new Error('MERCADO_PAGO_ACCESS_TOKEN is required when PAYMENT_PROVIDER=MERCADO_PAGO.');
+  }
+
   return {
+    apiGatewayBaseUrl,
     databaseUrl: requireStringEnv('PAYMENT_DATABASE_URL', env.PAYMENT_DATABASE_URL),
+    frontendBaseUrl,
+    mercadoPagoAccessToken,
+    mercadoPagoFailureUrl: optionalStringEnv(env.MERCADO_PAGO_FAILURE_URL),
+    mercadoPagoNotificationUrl: optionalStringEnv(env.MERCADO_PAGO_NOTIFICATION_URL),
+    mercadoPagoPendingUrl: optionalStringEnv(env.MERCADO_PAGO_PENDING_URL),
+    mercadoPagoPublicKey: optionalStringEnv(env.MERCADO_PAGO_PUBLIC_KEY),
+    mercadoPagoSuccessUrl: optionalStringEnv(env.MERCADO_PAGO_SUCCESS_URL),
+    mercadoPagoWebhookSecret,
+    mercadoPagoWebhookUrl: optionalStringEnv(env.MERCADO_PAGO_WEBHOOK_URL),
     mockFailureAmount: parseDecimalEnv(
       'PAYMENT_MOCK_FAILURE_AMOUNT',
       env.PAYMENT_MOCK_FAILURE_AMOUNT,
@@ -67,12 +142,7 @@ export function loadPaymentServiceConfig(
       max: 65_535,
       min: 1,
     }),
-    providerMode: parseEnumEnv(
-      'PAYMENT_PROVIDER_MODE',
-      env.PAYMENT_PROVIDER_MODE,
-      ['MOCK'],
-      'MOCK',
-    ),
+    providerMode,
     rabbitMqUrl: requireStringEnv('RABBITMQ_URL', env.RABBITMQ_URL),
     serviceName: 'payment-service',
   };
@@ -89,4 +159,9 @@ function parseDecimalEnv(name: string, value: string | undefined, fallback: numb
   }
 
   return parsedValue;
+}
+
+function optionalStringEnv(value: string | undefined): string | undefined {
+  const trimmedValue = value?.trim();
+  return trimmedValue ? trimmedValue : undefined;
 }

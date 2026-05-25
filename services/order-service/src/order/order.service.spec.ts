@@ -18,7 +18,12 @@ describe('OrderService', () => {
     cartClient = new FakeCartClient();
     prisma = new FakeOrderPrisma();
     rabbitMqClient = new FakeRabbitMqClient();
-    service = new OrderService(cartClient as never, prisma as never, rabbitMqClient as never);
+    service = new OrderService(
+      cartClient as never,
+      { paymentProvider: 'MOCK' } as never,
+      prisma as never,
+      rabbitMqClient as never,
+    );
   });
 
   it('creates an order from the active cart and preserves item snapshots', async () => {

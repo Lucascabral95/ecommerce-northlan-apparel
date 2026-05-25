@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { parseIntegerEnv, requireStringEnv } from '@northlane/shared';
+import { parseEnumEnv, parseIntegerEnv, requireStringEnv } from '@northlane/shared';
 
 export type OrderServiceConfig = Readonly<{
   databaseUrl: string;
+  paymentProvider: 'MERCADO_PAGO' | 'MOCK';
   port: number;
   rabbitMqUrl: string;
   serviceName: 'order-service';
@@ -11,6 +12,10 @@ export type OrderServiceConfig = Readonly<{
 @Injectable()
 export class OrderServiceConfigService {
   private readonly config = loadOrderServiceConfig();
+
+  get paymentProvider(): 'MERCADO_PAGO' | 'MOCK' {
+    return this.config.paymentProvider;
+  }
 
   get port(): number {
     return this.config.port;
@@ -28,6 +33,12 @@ export class OrderServiceConfigService {
 export function loadOrderServiceConfig(env: NodeJS.ProcessEnv = process.env): OrderServiceConfig {
   return {
     databaseUrl: requireStringEnv('ORDER_DATABASE_URL', env.ORDER_DATABASE_URL),
+    paymentProvider: parseEnumEnv(
+      'PAYMENT_PROVIDER',
+      env.PAYMENT_PROVIDER ?? env.PAYMENT_PROVIDER_MODE,
+      ['MOCK', 'MERCADO_PAGO'],
+      'MOCK',
+    ),
     port: parseIntegerEnv('ORDER_SERVICE_PORT', env.ORDER_SERVICE_PORT ?? env.PORT, {
       fallback: 4106,
       max: 65_535,

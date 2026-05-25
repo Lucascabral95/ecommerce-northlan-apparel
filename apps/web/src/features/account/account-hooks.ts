@@ -44,6 +44,7 @@ export function useOrders() {
 
 export function useOrder(id: string) {
   return useQuery({
+    enabled: id.length > 0,
     queryFn: () => getOrder(id),
     queryKey: queryKeys.order(id),
     refetchInterval: (query) => {

@@ -14,6 +14,7 @@ import { HealthModule } from './health/health.module';
 import { MeModule } from './me/me.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { OrdersModule } from './orders/orders.module';
+import { PaymentsModule } from './payments/payments.module';
 import { ProductsModule } from './products/products.module';
 
 @Module({
@@ -38,6 +39,7 @@ import { ProductsModule } from './products/products.module';
     CartModule,
     CheckoutModule,
     OrdersModule,
+    PaymentsModule,
     AdminModule,
   ],
   providers: [

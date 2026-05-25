@@ -426,6 +426,23 @@ export type CreateOrderCommand = BaseCommand<
   typeof ROUTING_KEYS.orderCommandCreateOrder
 >;
 
+export type CreateCheckoutSessionCommandPayload = CreateOrderCommandPayload;
+
+export type CheckoutSessionStatus = 'MOCK_PROCESSED' | 'ORDER_CREATED' | 'PAYMENT_READY';
+
+export type CheckoutSessionDto = Readonly<{
+  checkoutUrl?: string;
+  order: OrderDto;
+  payment?: PaymentDto;
+  paymentProvider: PaymentProvider;
+  status: CheckoutSessionStatus;
+}>;
+
+export type CreateCheckoutSessionCommand = BaseCommand<
+  CreateCheckoutSessionCommandPayload,
+  typeof ROUTING_KEYS.orderCommandCreateCheckoutSession
+>;
+
 export type OrderStatus =
   | 'CANCELLED'
   | 'CONFIRMED'
@@ -745,8 +762,10 @@ export type RequestPaymentCommandPayload = Readonly<{
   amount: number;
   currency: string;
   idempotencyKey: string;
+  items?: readonly PaymentPreferenceItemPayload[];
   metadata?: Record<string, unknown>;
   orderId: string;
+  orderNumber?: string;
   provider: 'MERCADO_PAGO' | 'MOCK' | 'STRIPE';
   userId: string;
 }>;
@@ -756,25 +775,98 @@ export type RequestPaymentCommand = BaseCommand<
   typeof ROUTING_KEYS.paymentCommandRequestPayment
 >;
 
-export type PaymentStatus = 'APPROVED' | 'CANCELLED' | 'PENDING' | 'REFUNDED' | 'REJECTED';
+export type PaymentPreferenceItemPayload = Readonly<{
+  quantity: number;
+  sku: string;
+  title: string;
+  unitPrice: number;
+}>;
+
+export type ProcessPaymentWebhookCommandPayload = Readonly<{
+  body: Record<string, unknown>;
+  headers: Record<string, string | undefined>;
+  query: Record<string, string | undefined>;
+}>;
+
+export type ProcessPaymentWebhookCommand = BaseCommand<
+  ProcessPaymentWebhookCommandPayload,
+  typeof ROUTING_KEYS.paymentCommandProcessWebhook
+>;
+
+export type SyncPaymentStatusCommandPayload = Readonly<{
+  orderId?: string;
+  providerPaymentId?: string;
+}>;
+
+export type SyncPaymentStatusCommand = BaseCommand<
+  SyncPaymentStatusCommandPayload,
+  typeof ROUTING_KEYS.paymentCommandSyncPaymentStatus
+>;
+
+export type PaymentStatus =
+  | 'APPROVED'
+  | 'CANCELLED'
+  | 'EXPIRED'
+  | 'IN_PROCESS'
+  | 'PENDING'
+  | 'REFUNDED'
+  | 'REJECTED';
 
 export type PaymentProvider = 'MERCADO_PAGO' | 'MOCK' | 'STRIPE';
 
 export type PaymentDto = Readonly<{
   amount: number;
+  checkoutUrl?: string;
   createdAt: string;
   currency: string;
+  externalReference?: string;
   failureReason?: string;
   id: string;
   idempotencyKey: string;
+  initPoint?: string;
   metadata?: unknown;
   orderId: string;
   provider: PaymentProvider;
   providerPaymentId?: string;
+  providerPreferenceId?: string;
+  rawProviderStatus?: string;
+  sandboxInitPoint?: string;
   status: PaymentStatus;
   updatedAt: string;
   userId: string;
 }>;
+
+export type PreferenceCreatedEventPayload = Readonly<{
+  checkoutUrl: string;
+  idempotencyKey: string;
+  orderId: string;
+  paymentId: string;
+  provider: PaymentProvider;
+  providerPreferenceId: string;
+  userId: string;
+}>;
+
+export type PreferenceCreatedEvent = BaseEvent<
+  PreferenceCreatedEventPayload,
+  typeof ROUTING_KEYS.paymentEventPreferenceCreated
+>;
+
+export type PaymentPendingEventPayload = Readonly<{
+  amount: number;
+  currency: string;
+  idempotencyKey: string;
+  orderId: string;
+  paymentId: string;
+  provider: PaymentProvider;
+  providerPaymentId?: string;
+  rawProviderStatus?: string;
+  userId: string;
+}>;
+
+export type PaymentPendingEvent = BaseEvent<
+  PaymentPendingEventPayload,
+  typeof ROUTING_KEYS.paymentEventPaymentPending
+>;
 
 export type PaymentSucceededEventPayload = Readonly<{
   amount: number;
@@ -800,12 +892,47 @@ export type PaymentFailedEventPayload = Readonly<{
   orderId: string;
   paymentId: string;
   provider: PaymentProvider;
+  providerPaymentId?: string;
+  rawProviderStatus?: string;
   userId: string;
 }>;
 
 export type PaymentFailedEvent = BaseEvent<
   PaymentFailedEventPayload,
   typeof ROUTING_KEYS.paymentEventPaymentFailed
+>;
+
+export type PaymentRejectedEvent = BaseEvent<
+  PaymentFailedEventPayload,
+  typeof ROUTING_KEYS.paymentEventPaymentRejected
+>;
+
+export type PaymentCancelledEvent = BaseEvent<
+  PaymentFailedEventPayload,
+  typeof ROUTING_KEYS.paymentEventPaymentCancelled
+>;
+
+export type PaymentExpiredEvent = BaseEvent<
+  PaymentFailedEventPayload,
+  typeof ROUTING_KEYS.paymentEventPaymentExpired
+>;
+
+export type PaymentWebhookEventPayload = Readonly<{
+  action?: string;
+  provider: PaymentProvider;
+  providerEventId?: string;
+  resourceId?: string;
+  topic?: string;
+}>;
+
+export type PaymentWebhookReceivedEvent = BaseEvent<
+  PaymentWebhookEventPayload,
+  typeof ROUTING_KEYS.paymentEventWebhookReceived
+>;
+
+export type PaymentWebhookProcessedEvent = BaseEvent<
+  PaymentWebhookEventPayload,
+  typeof ROUTING_KEYS.paymentEventWebhookProcessed
 >;
 
 export type AuthTokensDto = Readonly<{
@@ -924,6 +1051,7 @@ export type InitialCommand =
   | AdjustStockCommand
   | ClearCartCommand
   | ConfirmStockReservationCommand
+  | CreateCheckoutSessionCommand
   | CreateProductCommand
   | CreateOrderCommand
   | GetCategoriesCommand
@@ -941,7 +1069,9 @@ export type InitialCommand =
   | ReleaseStockReservationCommand
   | RemoveCartItemCommand
   | RequestPaymentCommand
+  | ProcessPaymentWebhookCommand
   | ReserveStockCommand
+  | SyncPaymentStatusCommand
   | UpdateCartItemCommand
   | UpdateOrderStatusCommand
   | UpdateProductCommand
@@ -952,8 +1082,15 @@ export type InitialEvent =
   | OrderConfirmedEvent
   | OrderCreatedEvent
   | OrderStatusChangedEvent
+  | PaymentCancelledEvent
+  | PaymentExpiredEvent
   | PaymentFailedEvent
+  | PaymentPendingEvent
+  | PaymentRejectedEvent
   | PaymentSucceededEvent
+  | PaymentWebhookProcessedEvent
+  | PaymentWebhookReceivedEvent
+  | PreferenceCreatedEvent
   | ProductCreatedEvent
   | ProductUpdatedEvent
   | StockAdjustedEvent

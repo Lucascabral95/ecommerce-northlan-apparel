@@ -14,7 +14,7 @@ export function useCheckout() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
       void queryClient.invalidateQueries({ queryKey: queryKeys.orders });
-      pushToast('Order created. Payment and stock confirmation are processing.');
+      pushToast('Order created. Payment confirmation is processing.');
     },
   });
 }

@@ -1,4 +1,4 @@
-import type { OrderDto } from '@northlane/contracts';
+import type { CheckoutSessionDto } from '@northlane/contracts';
 import { apiRequest } from '../../shared/api/client';
 
 export type CheckoutInput = Readonly<{
@@ -7,7 +7,7 @@ export type CheckoutInput = Readonly<{
   shippingAddressSnapshot?: Record<string, unknown>;
 }>;
 
-export function checkout(input: CheckoutInput): Promise<OrderDto> {
+export function checkout(input: CheckoutInput): Promise<CheckoutSessionDto> {
   return apiRequest('/checkout', {
     auth: true,
     body: JSON.stringify(input),

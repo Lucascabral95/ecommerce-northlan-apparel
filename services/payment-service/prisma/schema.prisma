@@ -16,43 +16,95 @@ enum PaymentProvider {
 
 enum PaymentStatus {
   PENDING
+  IN_PROCESS
   APPROVED
   REJECTED
   CANCELLED
   REFUNDED
+  EXPIRED
+}
+
+enum WebhookEventStatus {
+  RECEIVED
+  IGNORED
+  PROCESSING
+  PROCESSED
+  FAILED
 }
 
 model Payment {
-  id                String          @id @default(uuid()) @db.Uuid
-  orderId           String          @unique @map("order_id")
-  userId            String          @map("user_id")
-  provider          PaymentProvider
-  providerPaymentId String?         @map("provider_payment_id")
-  status            PaymentStatus   @default(PENDING)
-  amount            Decimal         @db.Decimal(12, 2)
-  currency          String
-  idempotencyKey    String          @unique @map("idempotency_key")
-  requestHash       String          @map("request_hash")
-  metadata          Json?
-  failureReason     String?         @map("failure_reason")
-  createdAt         DateTime        @default(now()) @map("created_at")
-  updatedAt         DateTime        @updatedAt @map("updated_at")
-  events            PaymentEvent[]
+  id                   String          @id @default(uuid()) @db.Uuid
+  orderId              String          @unique @map("order_id")
+  userId               String          @map("user_id")
+  provider             PaymentProvider
+  providerPaymentId    String?         @map("provider_payment_id")
+  providerPreferenceId String?         @map("provider_preference_id")
+  externalReference    String?         @unique @map("external_reference")
+  status               PaymentStatus   @default(PENDING)
+  amount               Decimal         @db.Decimal(12, 2)
+  currency             String
+  checkoutUrl          String?         @map("checkout_url") @db.Text
+  initPoint            String?         @map("init_point") @db.Text
+  sandboxInitPoint     String?         @map("sandbox_init_point") @db.Text
+  idempotencyKey       String          @unique @map("idempotency_key")
+  requestHash          String          @map("request_hash")
+  rawProviderStatus    String?         @map("raw_provider_status")
+  metadata             Json?
+  failureReason        String?         @map("failure_reason")
+  expiresAt            DateTime?       @map("expires_at")
+  approvedAt           DateTime?       @map("approved_at")
+  rejectedAt           DateTime?       @map("rejected_at")
+  cancelledAt          DateTime?       @map("cancelled_at")
+  expiredAt            DateTime?       @map("expired_at")
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+  events               PaymentEvent[]
+  webhookEvents        WebhookEvent[]
 
   @@index([userId])
+  @@index([provider])
+  @@index([providerPreferenceId])
+  @@index([providerPaymentId])
   @@index([status])
   @@map("payments")
 }
 
 model PaymentEvent {
-  id        String   @id @default(uuid()) @db.Uuid
-  paymentId String   @map("payment_id") @db.Uuid
-  type      String
-  payload   Json
-  createdAt DateTime @default(now()) @map("created_at")
-  payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  id              String           @id @default(uuid()) @db.Uuid
+  paymentId       String           @map("payment_id") @db.Uuid
+  provider        PaymentProvider?
+  type            String
+  eventType       String?          @map("event_type")
+  providerEventId String?          @map("provider_event_id")
+  payload         Json
+  processedAt     DateTime?        @map("processed_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  payment         Payment          @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
   @@index([paymentId])
+  @@index([providerEventId])
   @@index([type])
   @@map("payment_events")
+}
+
+model WebhookEvent {
+  id               String             @id @default(uuid()) @db.Uuid
+  paymentId        String?            @map("payment_id") @db.Uuid
+  provider         PaymentProvider
+  deduplicationKey String             @unique @map("deduplication_key")
+  providerEventId  String?            @map("provider_event_id")
+  topic            String?
+  action           String?
+  resourceId       String?            @map("resource_id")
+  signature        String?
+  payload          Json
+  status           WebhookEventStatus @default(RECEIVED)
+  processedAt      DateTime?          @map("processed_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  payment          Payment?           @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([paymentId])
+  @@index([provider, resourceId])
+  @@index([status])
+  @@map("webhook_events")
 }

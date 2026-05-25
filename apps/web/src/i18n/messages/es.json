@@ -22,7 +22,10 @@
     "adminInventoryTitle": "Inventario admin",
     "adminUsersTitle": "Usuarios admin",
     "newProductTitle": "Nuevo producto",
-    "editProductTitle": "Editar producto"
+    "editProductTitle": "Editar producto",
+    "paymentSuccess": "Pago aprobado",
+    "paymentFailure": "Pago no aprobado",
+    "paymentPending": "Pago pendiente"
   },
   "common": {
     "account": "Cuenta",
@@ -222,7 +225,29 @@
     "summary": "Resumen del pedido",
     "placeOrder": "Confirmar pedido",
     "success": "Checkout iniciado.",
-    "failure": "No pudimos completar el checkout."
+    "failure": "No pudimos completar el checkout.",
+    "paymentReturn": {
+      "success": {
+        "eyebrow": "Pago recibido",
+        "title": "Estamos confirmando tu pedido.",
+        "description": "Mercado Pago aprobo el pago. El estado de abajo sale de Northlane, por eso puede tardar unos segundos en verse confirmado."
+      },
+      "failure": {
+        "eyebrow": "Pago no aprobado",
+        "title": "El pago no pudo completarse.",
+        "description": "El pedido queda protegido hasta procesar el resultado. Si fue rechazado, el stock reservado se libera automaticamente."
+      },
+      "pending": {
+        "eyebrow": "Pago pendiente",
+        "title": "El proveedor sigue revisando el pago.",
+        "description": "No crees un pedido duplicado. Vamos a actualizar el pedido cuando Mercado Pago envie el estado final."
+      },
+      "currentStatus": "Estado actual del pedido",
+      "missingOrder": "El retorno de pago no incluyo referencia de pedido.",
+      "orderHistory": "Historial de pedidos",
+      "retry": "Volver a la bolsa",
+      "viewOrder": "Ver pedido"
+    }
   },
   "admin": {
     "operations": "Operaciones",

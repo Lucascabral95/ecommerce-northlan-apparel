@@ -22,7 +22,10 @@
     "adminInventoryTitle": "Admin inventory",
     "adminUsersTitle": "Admin users",
     "newProductTitle": "New product",
-    "editProductTitle": "Edit product"
+    "editProductTitle": "Edit product",
+    "paymentSuccess": "Payment success",
+    "paymentFailure": "Payment issue",
+    "paymentPending": "Payment pending"
   },
   "common": {
     "account": "Account",
@@ -222,7 +225,29 @@
     "summary": "Order summary",
     "placeOrder": "Place order",
     "success": "Checkout started.",
-    "failure": "Checkout could not be completed."
+    "failure": "Checkout could not be completed.",
+    "paymentReturn": {
+      "success": {
+        "eyebrow": "Payment received",
+        "title": "We are confirming your order.",
+        "description": "Mercado Pago approved the payment. The order status below is read from Northlane, so it may take a few seconds to show confirmed."
+      },
+      "failure": {
+        "eyebrow": "Payment not approved",
+        "title": "The payment could not be completed.",
+        "description": "The order will stay protected until the payment result is processed. If it was rejected, reserved stock is released automatically."
+      },
+      "pending": {
+        "eyebrow": "Payment pending",
+        "title": "The provider is still reviewing the payment.",
+        "description": "Do not create a duplicate order. We will update the order once Mercado Pago sends the final status."
+      },
+      "currentStatus": "Current order status",
+      "missingOrder": "The payment return did not include an order reference.",
+      "orderHistory": "Order history",
+      "retry": "Return to bag",
+      "viewOrder": "View order"
+    }
   },
   "admin": {
     "operations": "Operations",
