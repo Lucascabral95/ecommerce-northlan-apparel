@@ -12,3 +12,14 @@ next-env.d.ts
 tmp/
 logs/
 **/src/generated/prisma/
+
+# Terraform local state/cache
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+crash.log
+crash.*.log
+.aws-rabbitmq-password
+.aws-deploy-image-tag

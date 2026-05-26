@@ -1,0 +1,56 @@
+# Copy this file to terraform.tfvars and replace all placeholder values before running apply.
+
+aws_region  = "us-east-1"
+environment = "dev"
+
+# Required for real Mercado Pago webhook/back URLs. Create/import an ACM certificate in the same region as the ALB.
+# certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+
+# Use your custom HTTPS domain once DNS points to the ALB.
+# frontend_base_url    = "https://app.example.com"
+# api_gateway_base_url = "https://app.example.com/api/v1"
+
+payment_provider = "MOCK"
+
+# Keep desired_count at 0 until ECR images are pushed and Secrets Manager values are populated.
+ecs_desired_count = 0
+image_tag         = "latest"
+
+# Keeps the old shared backend repository from the first Terraform attempt.
+# Task definitions use per-service repositories either way.
+retain_legacy_backend_repository = true
+
+# Low-cost dev default: no NAT Gateway and ECS tasks in public subnets with restricted security groups.
+enable_nat_gateway   = false
+ecs_assign_public_ip = true
+
+# Optional managed services. Enabling these increases monthly cost.
+enable_redis    = false
+enable_rabbitmq = false
+
+# Required only when enable_rabbitmq = true.
+# rabbitmq_username = "northlane"
+# rabbitmq_password = "replace-with-a-strong-password"
+
+rds_instance_class           = "db.t4g.micro"
+rds_allocated_storage        = 20
+rds_backup_retention_period = 0
+rds_deletion_protection      = false
+
+# Optional initial secret values. Values written here are stored in Terraform state.
+# Prefer setting real values through aws secretsmanager put-secret-value after the secrets are created.
+# secret_values = {
+#   jwt-access-secret            = "replace-with-a-strong-jwt-secret"
+#   rabbitmq-url                 = "amqps://user:password@broker-endpoint:5671"
+#   mercado-pago-access-token    = "TEST-..."
+#   mercado-pago-public-key      = "TEST-..."
+#   mercado-pago-webhook-secret  = "replace-with-mercado-pago-webhook-secret"
+#   auth-database-url            = "postgresql://northlane:password@rds-endpoint:5432/northlane_platform?schema=auth_service"
+#   user-database-url            = "postgresql://northlane:password@rds-endpoint:5432/northlane_platform?schema=user_service"
+#   catalog-database-url         = "postgresql://northlane:password@rds-endpoint:5432/northlane_platform?schema=catalog_service"
+#   inventory-database-url       = "postgresql://northlane:password@rds-endpoint:5432/northlane_platform?schema=inventory_service"
+#   cart-database-url            = "postgresql://northlane:password@rds-endpoint:5432/northlane_platform?schema=cart_service"
+#   order-database-url           = "postgresql://northlane:password@rds-endpoint:5432/northlane_platform?schema=order_service"
+#   payment-database-url         = "postgresql://northlane:password@rds-endpoint:5432/northlane_platform?schema=payment_service"
+#   notification-database-url    = "postgresql://northlane:password@rds-endpoint:5432/northlane_platform?schema=notification_service"
+# }

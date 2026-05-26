@@ -74,7 +74,8 @@ RUN --mount=type=cache,target=/root/.npm,sharing=locked npm install --global npm
     --workspace @northlane/cart-service \
     --workspace @northlane/order-service \
     --workspace @northlane/payment-service \
-    --workspace @northlane/notification-service
+    --workspace @northlane/notification-service \
+  && npm install --no-save --no-audit --fund=false prisma@6.19.0
 
 FROM node:${NODE_VERSION} AS runner
 
@@ -82,20 +83,39 @@ WORKDIR /workspace
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV SERVICE_ENTRYPOINT=apps/api-gateway/dist/main.js
 
 COPY --from=production-dependencies /workspace/node_modules ./node_modules
 COPY --from=builder /workspace/packages/contracts/package.json ./packages/contracts/package.json
 COPY --from=builder /workspace/packages/contracts/dist ./packages/contracts/dist
 COPY --from=builder /workspace/packages/shared/package.json ./packages/shared/package.json
 COPY --from=builder /workspace/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /workspace/apps/api-gateway/package.json ./apps/api-gateway/package.json
 COPY --from=builder /workspace/apps/api-gateway/dist ./apps/api-gateway/dist
+COPY --from=builder /workspace/services/auth-service/package.json ./services/auth-service/package.json
 COPY --from=builder /workspace/services/auth-service/dist ./services/auth-service/dist
+COPY --from=builder /workspace/services/user-service/package.json ./services/user-service/package.json
 COPY --from=builder /workspace/services/user-service/dist ./services/user-service/dist
+COPY --from=builder /workspace/services/catalog-service/package.json ./services/catalog-service/package.json
 COPY --from=builder /workspace/services/catalog-service/dist ./services/catalog-service/dist
+COPY --from=builder /workspace/services/inventory-service/package.json ./services/inventory-service/package.json
 COPY --from=builder /workspace/services/inventory-service/dist ./services/inventory-service/dist
+COPY --from=builder /workspace/services/cart-service/package.json ./services/cart-service/package.json
 COPY --from=builder /workspace/services/cart-service/dist ./services/cart-service/dist
+COPY --from=builder /workspace/services/order-service/package.json ./services/order-service/package.json
 COPY --from=builder /workspace/services/order-service/dist ./services/order-service/dist
+COPY --from=builder /workspace/services/payment-service/package.json ./services/payment-service/package.json
 COPY --from=builder /workspace/services/payment-service/dist ./services/payment-service/dist
+COPY --from=builder /workspace/services/notification-service/package.json ./services/notification-service/package.json
 COPY --from=builder /workspace/services/notification-service/dist ./services/notification-service/dist
+COPY --from=builder /workspace/services/auth-service/prisma ./services/auth-service/prisma
+COPY --from=builder /workspace/services/user-service/prisma ./services/user-service/prisma
+COPY --from=builder /workspace/services/catalog-service/prisma ./services/catalog-service/prisma
+COPY --from=builder /workspace/services/inventory-service/prisma ./services/inventory-service/prisma
+COPY --from=builder /workspace/services/cart-service/prisma ./services/cart-service/prisma
+COPY --from=builder /workspace/services/order-service/prisma ./services/order-service/prisma
+COPY --from=builder /workspace/services/payment-service/prisma ./services/payment-service/prisma
+COPY --from=builder /workspace/services/notification-service/prisma ./services/notification-service/prisma
+COPY --from=builder /workspace/scripts/e2e/bootstrap-inventory.mjs ./scripts/e2e/bootstrap-inventory.mjs
 
-CMD ["node", "apps/api-gateway/dist/main.js"]
+CMD ["sh", "-c", "node \"$SERVICE_ENTRYPOINT\""]

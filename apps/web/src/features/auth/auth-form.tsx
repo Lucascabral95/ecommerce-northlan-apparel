@@ -40,7 +40,15 @@ export function AuthForm({ mode }: Readonly<{ mode: 'login' | 'register' }>) {
   const mutation = useMutation({
     mutationFn: (values: LoginValues | RegisterValues) =>
       mode === 'login' ? login(values) : register(values),
-    onError: (error) => pushToast(resolveAuthErrorMessage(error, t('genericError')), 'error'),
+    onError: (error) =>
+      pushToast(
+        resolveAuthErrorMessage(error, {
+          duplicateEmail: t('duplicateEmail'),
+          generic: t('genericError'),
+          invalidCredentials: t('invalidCredentials'),
+        }),
+        'error',
+      ),
     onSuccess: (response) => {
       setSession(response);
       pushToast(mode === 'login' ? t('welcomeBack') : t('accountCreated'));
@@ -104,12 +112,26 @@ export function AuthForm({ mode }: Readonly<{ mode: 'login' | 'register' }>) {
   );
 }
 
-function resolveAuthErrorMessage(error: unknown, fallbackMessage: string): string {
+type AuthErrorMessages = Readonly<{
+  duplicateEmail: string;
+  generic: string;
+  invalidCredentials: string;
+}>;
+
+function resolveAuthErrorMessage(error: unknown, messages: AuthErrorMessages): string {
+  if (error instanceof ApiError && error.status === 409) {
+    return messages.duplicateEmail;
+  }
+
+  if (error instanceof ApiError && error.status === 401) {
+    return messages.invalidCredentials;
+  }
+
   if (error instanceof ApiError && error.status < 500) {
     return error.message;
   }
 
-  return fallbackMessage;
+  return messages.generic;
 }
 
 function resolveNextRoute(next: string | null) {

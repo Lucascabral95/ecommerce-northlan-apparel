@@ -1,6 +1,6 @@
 # Northlane Apparel
 
-Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 16**: it includes the monorepo foundation, local infrastructure, API Gateway, RabbitMQ-backed domain services, checkout saga wiring, customer and admin frontends, critical automated tests, a GitHub Actions CI workflow, and a live browser E2E harness against Docker-backed infrastructure.
+Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 17**: it includes the monorepo foundation, local infrastructure, API Gateway, RabbitMQ-backed domain services, checkout saga wiring, customer and admin frontends, critical automated tests, a GitHub Actions CI workflow, a live browser E2E harness against Docker-backed infrastructure, and documented AWS infrastructure for ECS Fargate.
 
 ## Current Scope
 
@@ -28,12 +28,12 @@ Implemented now:
 - Shared and contracts packages.
 - Local Docker Compose infrastructure for RabbitMQ, PostgreSQL and Redis.
 - GitHub Actions CI for lint, typecheck, tests, build, Prisma generation, migration validation and Docker Compose configuration checks.
-- Initial Terraform directory without cloud infrastructure.
+- Terraform AWS infrastructure for a dev ECS Fargate deployment with VPC, public/private subnets, one ECR repository per app/service, ALB, HTTPS support, ECS services, RDS PostgreSQL, optional Redis, optional Amazon MQ RabbitMQ, CloudWatch Logs and Secrets Manager.
 - Root Makefile with initial local commands.
 
 Not implemented yet:
 
-- CD or AWS deployment.
+- CD pipeline automation or production deployment hardening.
 
 ## Target Architecture
 
@@ -80,6 +80,8 @@ packages/
 infra/
   docker/
   terraform/
+    environments/dev/
+    modules/
 docs/
 ```
 
@@ -100,6 +102,10 @@ make lint
 make test
 make test-e2e
 make test-e2e-live
+make deploy
+make deploy-plan
+make deploy-images
+make destroy
 make clean
 ```
 
@@ -139,6 +145,18 @@ npm run test:e2e:live
 npm run typecheck
 npm run clean
 ```
+
+AWS Terraform commands:
+
+```bash
+cd infra/terraform/environments/dev
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform plan
+terraform apply
+```
+
+`make deploy` targets only `infra/terraform/environments/dev`; it initializes Terraform, creates/updates ECR and ALB first, builds and pushes one image per app/service to ECR, then applies Terraform with a fresh image tag so ECS task definitions are updated. `make destroy` destroys the Terraform dev environment and does not affect local Docker Compose resources.
 
 ## Testing
 

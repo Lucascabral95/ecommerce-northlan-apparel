@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { createStableId } from '../lib/id';
 
 type ToastTone = 'error' | 'success';
 type ToastMessage = Readonly<{
@@ -18,7 +19,7 @@ type ToastState = {
 export const useToastStore = create<ToastState>((set) => ({
   messages: [],
   push: (message, tone = 'success') => {
-    const id = crypto.randomUUID();
+    const id = createStableId('toast');
     set((state) => ({
       messages: [...state.messages, { id, message, tone }],
     }));

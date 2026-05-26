@@ -180,6 +180,8 @@
     "alreadyAccount": "Already have an account?",
     "welcomeBack": "Welcome back.",
     "accountCreated": "Account created.",
+    "duplicateEmail": "An account with that email already exists. Sign in or use another email.",
+    "invalidCredentials": "Invalid email or password.",
     "genericError": "Authentication failed. Check the form and retry."
   },
   "account": {

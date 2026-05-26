@@ -1,18 +1,33 @@
 import process from 'node:process';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const repoRoot = resolve(import.meta.dirname, '..', '..');
 
+function resolveGeneratedPrismaClient(serviceName) {
+  const productionClientPath = resolve(
+    repoRoot,
+    'services',
+    serviceName,
+    'dist',
+    'generated',
+    'prisma',
+    'index.js',
+  );
+
+  if (existsSync(productionClientPath)) {
+    return productionClientPath;
+  }
+
+  return resolve(repoRoot, 'services', serviceName, 'src', 'generated', 'prisma', 'index.js');
+}
+
 const { PrismaClient: CatalogPrismaClient } = await import(
-  pathToFileURL(
-    resolve(repoRoot, 'services', 'catalog-service', 'src', 'generated', 'prisma', 'index.js'),
-  ).href,
+  pathToFileURL(resolveGeneratedPrismaClient('catalog-service')).href,
 );
 const { PrismaClient: InventoryPrismaClient } = await import(
-  pathToFileURL(
-    resolve(repoRoot, 'services', 'inventory-service', 'src', 'generated', 'prisma', 'index.js'),
-  ).href,
+  pathToFileURL(resolveGeneratedPrismaClient('inventory-service')).href,
 );
 
 const catalogPrisma = new CatalogPrismaClient();
