@@ -180,6 +180,8 @@
     "alreadyAccount": "Ya tenes cuenta?",
     "welcomeBack": "Sesion iniciada.",
     "accountCreated": "Cuenta creada.",
+    "duplicateEmail": "Ya existe una cuenta con ese email. Ingresa o usa otro correo.",
+    "invalidCredentials": "Email o contrasena incorrectos.",
     "genericError": "No pudimos autenticarte. Revisa el formulario e intenta de nuevo."
   },
   "account": {

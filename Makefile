@@ -1,7 +1,36 @@
-.PHONY: install dev images infra-up bootstrap up start down logs build lint test test-e2e test-e2e-live clean
+.PHONY: install dev images infra-up bootstrap up start down logs build lint test test-e2e test-e2e-live deploy deploy-infra deploy-reconcile deploy-preflight deploy-secrets deploy-images deploy-migrate deploy-seed deploy-services ensure-deploy-image-tag deploy-plan deploy-status deploy-stop destroy clean
 
 COMPOSE_BAKE ?= true
 COMPOSE_PARALLEL_LIMIT ?= 4
+TF_ENV ?= dev
+TF_DIR ?= infra/terraform/environments/$(TF_ENV)
+AWS_DEPLOY_IMAGE_TAG_FILE ?= .aws-deploy-image-tag
+AWS_DEPLOY_IMAGE_TAG_DEFAULT := dev-$(shell powershell -NoProfile -Command "Get-Date -Format yyyyMMddHHmmss")
+AWS_DEPLOY_IMAGE_TAG_FROM_FILE := $(shell powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Test-Path '$(AWS_DEPLOY_IMAGE_TAG_FILE)') { (Get-Content '$(AWS_DEPLOY_IMAGE_TAG_FILE)' -Raw).Trim() }")
+AWS_DEPLOY_IMAGE_TAG_ORIGIN := $(origin AWS_DEPLOY_IMAGE_TAG)
+ifeq ($(AWS_DEPLOY_IMAGE_TAG_ORIGIN), undefined)
+ifneq ($(filter deploy deploy-images,$(MAKECMDGOALS)),)
+AWS_DEPLOY_IMAGE_TAG := $(AWS_DEPLOY_IMAGE_TAG_DEFAULT)
+else ifneq ($(strip $(AWS_DEPLOY_IMAGE_TAG_FROM_FILE)),)
+AWS_DEPLOY_IMAGE_TAG := $(AWS_DEPLOY_IMAGE_TAG_FROM_FILE)
+else
+AWS_DEPLOY_IMAGE_TAG := $(AWS_DEPLOY_IMAGE_TAG_DEFAULT)
+endif
+endif
+AWS_DOCKER_PLATFORM ?= linux/amd64
+AWS_REGION ?= us-east-1
+AWS_ECS_CLUSTER ?= northlane-apparel-dev-cluster
+AWS_ECS_DESIRED_COUNT ?= 1
+AWS_ECS_SERVICES ?= web api-gateway auth-service user-service catalog-service inventory-service cart-service order-service payment-service notification-service
+AWS_RABBITMQ_URL ?=
+AWS_ENABLE_RABBITMQ ?= true
+AWS_RABBITMQ_USERNAME ?= northlane
+AWS_RABBITMQ_PASSWORD_FILE ?= .aws-rabbitmq-password
+AWS_RABBITMQ_PASSWORD ?= $(shell powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Test-Path '$(AWS_RABBITMQ_PASSWORD_FILE)') { (Get-Content '$(AWS_RABBITMQ_PASSWORD_FILE)' -Raw).Trim() } else { $$password = (([guid]::NewGuid().ToString('N')) + ([guid]::NewGuid().ToString('N'))).Substring(0, 32); Set-Content -NoNewline -Path '$(AWS_RABBITMQ_PASSWORD_FILE)' -Value $$password; $$password }")
+TF_DEPLOY_VARS := -var="image_tag=$(AWS_DEPLOY_IMAGE_TAG)"
+ifeq ($(AWS_ENABLE_RABBITMQ),true)
+TF_DEPLOY_VARS += -var="enable_rabbitmq=true" -var="rabbitmq_username=$(AWS_RABBITMQ_USERNAME)" -var="rabbitmq_password=$(AWS_RABBITMQ_PASSWORD)"
+endif
 export COMPOSE_BAKE COMPOSE_PARALLEL_LIMIT
 
 install:
@@ -45,6 +74,64 @@ lint:
 
 build:
 	npm run build
+
+# Terraform deployment
+deploy: deploy-infra deploy-secrets deploy-images deploy-migrate deploy-seed deploy-services
+
+deploy-infra:
+	terraform -chdir=$(TF_DIR) init
+	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/reconcile-terraform-existing-resources.ps1 -TerraformDir "$(TF_DIR)" -Region "$(AWS_REGION)"
+	@echo Applying AWS infrastructure with ECS desired_count=0...
+	@terraform -chdir=$(TF_DIR) apply -auto-approve $(TF_DEPLOY_VARS) -var="ecs_desired_count=0"
+
+deploy-reconcile:
+	terraform -chdir=$(TF_DIR) init
+	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/reconcile-terraform-existing-resources.ps1 -TerraformDir "$(TF_DIR)" -Region "$(AWS_REGION)"
+
+deploy-preflight: deploy-infra
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/deploy-ecr-images.ps1 -TerraformDir "$(TF_DIR)" -ImageTag "$(AWS_DEPLOY_IMAGE_TAG)" -DockerPlatform "$(AWS_DOCKER_PLATFORM)" -SkipDockerBuild
+
+deploy-images:
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/deploy-ecr-images.ps1 -TerraformDir "$(TF_DIR)" -ImageTag "$(AWS_DEPLOY_IMAGE_TAG)" -DockerPlatform "$(AWS_DOCKER_PLATFORM)"
+	@powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-Content -NoNewline -Path '$(AWS_DEPLOY_IMAGE_TAG_FILE)' -Value '$(AWS_DEPLOY_IMAGE_TAG)'"
+
+ensure-deploy-image-tag:
+	@powershell -NoProfile -ExecutionPolicy Bypass -Command "if ('$(AWS_DEPLOY_IMAGE_TAG_ORIGIN)' -ne 'undefined') { exit 0 }; if (-not (Test-Path '$(AWS_DEPLOY_IMAGE_TAG_FILE)')) { throw 'No deployed image tag found. Run make deploy-images first, run make deploy, or pass AWS_DEPLOY_IMAGE_TAG=<tag> explicitly.' }"
+
+deploy-services: ensure-deploy-image-tag
+	@echo Updating ECS services with desired_count=$(AWS_ECS_DESIRED_COUNT)...
+	@terraform -chdir=$(TF_DIR) apply -auto-approve $(TF_DEPLOY_VARS) -var="ecs_desired_count=$(AWS_ECS_DESIRED_COUNT)"
+
+deploy-migrate:
+	@echo Running Prisma migrations in ECS one-off tasks...
+	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/run-prisma-migrations.ps1 -TerraformDir "$(TF_DIR)" -Region "$(AWS_REGION)"
+
+deploy-seed: ensure-deploy-image-tag
+	@echo Seeding catalog and synchronizing inventory in ECS one-off tasks...
+	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/run-catalog-seed.ps1 -TerraformDir "$(TF_DIR)" -Region "$(AWS_REGION)"
+
+deploy-secrets:
+	@echo Configuring AWS Secrets Manager values...
+	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/configure-ecs-secrets.ps1 -TerraformDir "$(TF_DIR)" -Region "$(AWS_REGION)" -RabbitMqUrl "$(AWS_RABBITMQ_URL)" -RabbitMqUsername "$(AWS_RABBITMQ_USERNAME)" -RabbitMqPassword "$(AWS_RABBITMQ_PASSWORD)"
+
+deploy-plan:
+	terraform -chdir=$(TF_DIR) init
+	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/reconcile-terraform-existing-resources.ps1 -TerraformDir "$(TF_DIR)" -Region "$(AWS_REGION)"
+	@terraform -chdir=$(TF_DIR) plan $(TF_DEPLOY_VARS) -var="ecs_desired_count=$(AWS_ECS_DESIRED_COUNT)"
+
+deploy-status:
+	aws ecs describe-services --region $(AWS_REGION) --cluster $(AWS_ECS_CLUSTER) --services $(AWS_ECS_SERVICES) --query "services[].{name:serviceName,desired:desiredCount,running:runningCount,pending:pendingCount,status:status,taskDefinition:taskDefinition}" --output table
+
+deploy-stop:
+	@echo Stopping ECS services with desired_count=0...
+	@terraform -chdir=$(TF_DIR) apply -auto-approve $(TF_DEPLOY_VARS) -var="ecs_desired_count=0"
+
+# destroy:
+# 	terraform -chdir=$(TF_DIR) destroy
+destroy:
+	terraform -chdir=$(TF_DIR) init
+	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/remove-ecr-from-terraform-state.ps1 -TerraformDir "$(TF_DIR)"
+	terraform -chdir=$(TF_DIR) destroy
 
 clean:
 	npm run clean

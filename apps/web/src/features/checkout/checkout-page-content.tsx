@@ -7,6 +7,7 @@ import { useAddresses } from '../account/account-hooks';
 import { useCart } from '../cart/cart-hooks';
 import { Button } from '../../shared/ui/button';
 import { EmptyState, ErrorState } from '../../shared/ui/states';
+import { createStableId } from '../../shared/lib/id';
 import { CheckoutSummary } from './checkout-summary';
 import { useCheckout } from './checkout-hook';
 
@@ -88,7 +89,7 @@ export function CheckoutPageContent() {
                 const defaultAddress = addresses.data?.find((address) => address.isDefault);
                 checkout.mutate(
                   {
-                    idempotencyKey: crypto.randomUUID(),
+                    idempotencyKey: createStableId('checkout'),
                     shippingAddressId: addressId ?? defaultAddress?.id,
                   },
                   {
