@@ -14,7 +14,14 @@ import {
   StockReservationReferencePayload,
   StockReservedEventPayload,
 } from '@northlane/contracts';
-import { RabbitMqClient } from '@northlane/shared';
+import {
+  RabbitMqClient,
+  recordStockLowItems,
+  recordStockReservation,
+  recordStockReservationConfirmed,
+  recordStockReservationFailed,
+  recordStockReservationReleased,
+} from '@northlane/shared';
 import { createHash } from 'node:crypto';
 import {
   InventoryItem,
@@ -94,6 +101,7 @@ export class InventoryService {
 
         const availableStock = inventoryItem.stockOnHand - inventoryItem.reservedStock;
         if (availableStock < item.quantity) {
+          recordStockLowItems(this.config.serviceName);
           failedItems.push(item);
           failureReason = `Insufficient stock for SKU ${item.sku}.`;
           continue;
@@ -187,8 +195,10 @@ export class InventoryService {
     });
 
     if (result.event && result.reservation.status === 'FAILED') {
+      recordStockReservationFailed(this.config.serviceName);
       await this.publishEvent(ROUTING_KEYS.inventoryEventStockReservationFailed, result.event, context);
     } else if (result.event) {
+      recordStockReservation(this.config.serviceName);
       await this.publishEvent(ROUTING_KEYS.inventoryEventStockReserved, result.event, context);
     }
 
@@ -259,6 +269,7 @@ export class InventoryService {
     });
 
     if (result.event) {
+      recordStockReservationConfirmed(this.config.serviceName);
       await this.publishEvent(ROUTING_KEYS.inventoryEventStockConfirmed, result.event, context);
     }
 
@@ -329,6 +340,7 @@ export class InventoryService {
     });
 
     if (result.event) {
+      recordStockReservationReleased(this.config.serviceName);
       await this.publishEvent(ROUTING_KEYS.inventoryEventStockReleased, result.event, context);
     }
 

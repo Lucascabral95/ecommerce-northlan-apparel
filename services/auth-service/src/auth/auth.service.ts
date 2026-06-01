@@ -1,4 +1,10 @@
 import { ConflictException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  recordAuthLoginFailed,
+  recordAuthLoginSuccess,
+  recordAuthRegisterFailed,
+  recordAuthRegisterSuccess,
+} from '@northlane/shared';
 import { randomUUID } from 'node:crypto';
 import { AUTH_REPOSITORY, AuthRepository } from './auth.repository';
 import { AuthSession, LoginInput, RegisterInput, StoredUserCredential } from './auth.types';
@@ -16,46 +22,60 @@ export class AuthService {
   ) {}
 
   async register(input: RegisterInput, correlationId: string, causationId?: string): Promise<AuthSession> {
-    const email = normalizeEmail(input.email);
-    const existingUser = await this.repository.findUserByEmail(email);
-    if (existingUser) {
-      throw new ConflictException('A user with this email already exists.');
+    try {
+      const email = normalizeEmail(input.email);
+      const existingUser = await this.repository.findUserByEmail(email);
+      if (existingUser) {
+        throw new ConflictException('A user with this email already exists.');
+      }
+
+      const user = await this.repository.createUserCredential({
+        email,
+        passwordHash: await this.passwordService.hashPassword(input.password),
+        role: 'USER',
+        userId: randomUUID(),
+      });
+
+      await this.userRegisteredPublisher.publish(
+        {
+          email: user.email,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          role: user.role,
+          userId: user.userId,
+        },
+        correlationId,
+        causationId,
+      );
+
+      const session = await this.createSession(user);
+      recordAuthRegisterSuccess('auth-service');
+      return session;
+    } catch (error) {
+      recordAuthRegisterFailed('auth-service');
+      throw error;
     }
-
-    const user = await this.repository.createUserCredential({
-      email,
-      passwordHash: await this.passwordService.hashPassword(input.password),
-      role: 'USER',
-      userId: randomUUID(),
-    });
-
-    await this.userRegisteredPublisher.publish(
-      {
-        email: user.email,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        role: user.role,
-        userId: user.userId,
-      },
-      correlationId,
-      causationId,
-    );
-
-    return this.createSession(user);
   }
 
   async login(input: LoginInput): Promise<AuthSession> {
-    const user = await this.repository.findUserByEmail(normalizeEmail(input.email));
-    if (!user) {
-      throw new UnauthorizedException('Invalid email or password.');
-    }
+    try {
+      const user = await this.repository.findUserByEmail(normalizeEmail(input.email));
+      if (!user) {
+        throw new UnauthorizedException('Invalid email or password.');
+      }
 
-    const passwordMatches = await this.passwordService.verifyPassword(input.password, user.passwordHash);
-    if (!passwordMatches) {
-      throw new UnauthorizedException('Invalid email or password.');
-    }
+      const passwordMatches = await this.passwordService.verifyPassword(input.password, user.passwordHash);
+      if (!passwordMatches) {
+        throw new UnauthorizedException('Invalid email or password.');
+      }
 
-    return this.createSession(user);
+      const session = await this.createSession(user);
+      recordAuthLoginSuccess('auth-service');
+      return session;
+    } catch (error) {
+      recordAuthLoginFailed('auth-service');
+      throw error;
+    }
   }
 
   async refresh(refreshToken: string): Promise<AuthSession> {

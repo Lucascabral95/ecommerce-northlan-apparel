@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import {
   CheckoutSessionDto,
@@ -131,6 +132,10 @@ function mapRpcError(error: unknown): Error {
 
   if (candidate.code === 'NOT_FOUND') {
     return new NotFoundException(candidate.message);
+  }
+
+  if (candidate.code === 'HTTP_503') {
+    return new ServiceUnavailableException(candidate.message);
   }
 
   return candidate instanceof Error ? candidate : new Error('Order service request failed.');

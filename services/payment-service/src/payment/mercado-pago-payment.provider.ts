@@ -45,7 +45,11 @@ export class MercadoPagoPaymentProvider implements PaymentProviderAdapter {
     });
 
     if (!response.ok) {
-      throw new ServiceUnavailableException('Mercado Pago preference creation failed.');
+      throw createMercadoPagoRequestError(
+        'Mercado Pago preference creation failed.',
+        response.status,
+        await safeReadResponseBody(response),
+      );
     }
 
     const body = (await response.json()) as MercadoPagoPreferenceResponse;
@@ -78,7 +82,11 @@ export class MercadoPagoPaymentProvider implements PaymentProviderAdapter {
     );
 
     if (!response.ok) {
-      throw new ServiceUnavailableException('Mercado Pago payment status request failed.');
+      throw createMercadoPagoRequestError(
+        'Mercado Pago payment status request failed.',
+        response.status,
+        await safeReadResponseBody(response),
+      );
     }
 
     const body = (await response.json()) as MercadoPagoPaymentResponse;
@@ -145,4 +153,27 @@ function buildPreferenceBody(
 
 function trimSlash(value: string): string {
   return value.replace(/\/+$/, '');
+}
+
+async function safeReadResponseBody(response: Response): Promise<string | undefined> {
+  try {
+    const text = await response.text();
+    return text.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function createMercadoPagoRequestError(
+  baseMessage: string,
+  statusCode: number,
+  responseBody: string | undefined,
+) {
+  const message = responseBody ? `${baseMessage} ${responseBody}` : baseMessage;
+
+  if (statusCode >= 400 && statusCode < 500) {
+    return new BadRequestException(message);
+  }
+
+  return new ServiceUnavailableException(message);
 }

@@ -29,6 +29,7 @@ Implemented now:
 - Local Docker Compose infrastructure for RabbitMQ, PostgreSQL and Redis.
 - GitHub Actions CI for lint, typecheck, tests, build, Prisma generation, migration validation and Docker Compose configuration checks.
 - Terraform AWS infrastructure for a dev ECS Fargate deployment with VPC, public/private subnets, one ECR repository per app/service, ALB, HTTPS support, ECS services, RDS PostgreSQL, optional Redis, optional Amazon MQ RabbitMQ, CloudWatch Logs and Secrets Manager.
+- Local observability stack with Prometheus, Grafana, Loki and Grafana Alloy.
 - Root Makefile with initial local commands.
 
 Not implemented yet:
@@ -107,6 +108,19 @@ make deploy-plan
 make deploy-images
 make destroy
 make clean
+```
+
+If Windows blocks `make.exe` through App Control or PowerShell policy, use the native PowerShell wrapper instead:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 up
+powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 down
+powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 logs
+powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 observability-logs
+powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 lint
+powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 test
+powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 build
+powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 typecheck
 ```
 
 `make up` now builds and starts the full local platform through Docker Compose:
@@ -260,10 +274,16 @@ make down
 | Notification Service   | `http://localhost:4108/health`        | none                    |
 | RabbitMQ AMQP          | `localhost:5672`                      | `northlane / northlane` |
 | RabbitMQ Management UI | `http://localhost:15672`              | `northlane / northlane` |
+| RabbitMQ Metrics       | `http://localhost:15692/metrics`      | none                    |
 | PostgreSQL             | `localhost:5432`                      | `northlane / northlane` |
 | Redis                  | `localhost:6379`                      | none                    |
+| Prometheus             | `http://localhost:9090`               | none                    |
+| Grafana                | `http://localhost:3001`               | `admin / admin`         |
+| Loki                   | `http://localhost:3100/ready`         | none                    |
 
 Use `make logs` to follow container logs and `make down` to stop the stack. Persistent data is stored in named Docker volumes.
+
+Observability details, dashboard panels and Loki queries are documented in [docs/observability.md](docs/observability.md).
 
 ## API Gateway
 

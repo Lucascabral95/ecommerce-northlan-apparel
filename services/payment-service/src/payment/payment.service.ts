@@ -12,7 +12,13 @@ import {
   ROUTING_KEYS,
   SyncPaymentStatusCommandPayload,
 } from '@northlane/contracts';
-import { RabbitMqClient } from '@northlane/shared';
+import {
+  RabbitMqClient,
+  recordPaymentCreated,
+  recordPaymentFailed,
+  recordPaymentPending,
+  recordPaymentSucceeded,
+} from '@northlane/shared';
 import { createHash } from 'node:crypto';
 import { Payment, PaymentStatus, Prisma, PrismaClient, WebhookEvent } from '../generated/prisma';
 import { PaymentServiceConfigService } from '../config/payment-service.config';
@@ -155,6 +161,8 @@ export class PaymentService {
     });
 
     if (result.isNewPayment) {
+      recordPaymentCreatedMetric(result.payment, this.config.serviceName);
+      recordPaymentStatusMetric(result.payment, this.config.serviceName);
       await this.publishPaymentEvent(result.eventRoutingKey, result.eventPayload, context);
     }
 
@@ -342,6 +350,7 @@ export class PaymentService {
     }
 
     if (result.event) {
+      recordPaymentStatusMetric(result.payment, this.config.serviceName);
       await this.publishPaymentEvent(result.event.routingKey, result.event.payload, context);
     }
 
@@ -399,6 +408,34 @@ export class PaymentService {
       where: { id: webhookEvent.id },
     });
   }
+}
+
+function recordPaymentCreatedMetric(payment: Payment, service: string): void {
+  recordPaymentCreated({
+    provider: payment.provider,
+    service,
+    status: payment.status,
+  });
+}
+
+function recordPaymentStatusMetric(payment: Payment, service: string): void {
+  const input = {
+    provider: payment.provider,
+    service,
+    status: payment.status,
+  };
+
+  if (payment.status === 'APPROVED') {
+    recordPaymentSucceeded(input);
+    return;
+  }
+
+  if (isFailurePaymentStatus(payment.status as PaymentStatus)) {
+    recordPaymentFailed(input);
+    return;
+  }
+
+  recordPaymentPending(input);
 }
 
 function buildProviderPreferenceInput(

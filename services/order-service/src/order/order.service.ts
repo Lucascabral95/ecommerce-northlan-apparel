@@ -27,7 +27,17 @@ import {
   StockReservedEventPayload,
   UpdateOrderStatusCommandPayload,
 } from '@northlane/contracts';
-import { RabbitMqClient } from '@northlane/shared';
+import {
+  RabbitMqClient,
+  recordCheckoutCompleted,
+  recordCheckoutDuration,
+  recordCheckoutFailed,
+  recordCheckoutStarted,
+  recordOrderCancelled,
+  recordOrderConfirmed,
+  recordOrderCreated,
+  recordOrderFailed,
+} from '@northlane/shared';
 import { createHash, randomUUID } from 'node:crypto';
 import { Order, Prisma, PrismaClient } from '../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
@@ -40,6 +50,10 @@ type TransactionClient = Omit<
   PrismaClient,
   '$connect' | '$disconnect' | '$extends' | '$on' | '$transaction' | '$use'
 >;
+
+type CreateOrderOptions = Readonly<{
+  publishReserveStockCommand: boolean;
+}>;
 
 const ORDER_INCLUDE = {
   items: {
@@ -66,6 +80,7 @@ export class OrderService {
   async createOrder(
     payload: CreateOrderCommandPayload,
     context: MessageContext,
+    options: CreateOrderOptions = { publishReserveStockCommand: true },
   ): Promise<OrderDto> {
     const cart = await this.cartClient.getActiveCart(payload.userId, context);
     if (cart.items.length === 0) {
@@ -148,8 +163,11 @@ export class OrderService {
     });
 
     if (result.isNewOrder) {
+      recordOrderCreated(this.config.serviceName);
       await this.publishOrderCreated(result.order, context);
-      await this.publishReserveStockCommand(result.order, payload.idempotencyKey, context);
+      if (options.publishReserveStockCommand) {
+        await this.publishReserveStockCommand(result.order, payload.idempotencyKey, context);
+      }
     }
 
     return mapOrder(result.order);
@@ -159,32 +177,51 @@ export class OrderService {
     payload: CreateCheckoutSessionCommandPayload,
     context: MessageContext,
   ): Promise<CheckoutSessionDto> {
-    const createdOrder = await this.createOrder(payload, context);
-    let order = await this.fetchOrder(this.prisma, createdOrder.id);
+    recordCheckoutStarted(this.config.serviceName);
+    const startedAt = process.hrtime.bigint();
 
-    if (order.status === 'PENDING') {
-      await this.requestStockReservation(order, payload.idempotencyKey, context);
-      order = await this.markOrderPaymentPending(order.id, context);
-    }
+    try {
+      const createdOrder = await this.createOrder(payload, context, {
+        publishReserveStockCommand: false,
+      });
+      let order = await this.fetchOrder(this.prisma, createdOrder.id);
 
-    if (order.status !== 'PAYMENT_PENDING' && order.status !== 'STOCK_RESERVED') {
+      if (order.status === 'PENDING') {
+        await this.requestStockReservation(order, payload.idempotencyKey, context);
+        order = await this.markOrderPaymentPending(order.id, context);
+      }
+
+      if (order.status !== 'PAYMENT_PENDING' && order.status !== 'STOCK_RESERVED') {
+        return {
+          order: mapOrder(order),
+          paymentProvider: this.config.paymentProvider,
+          status: 'ORDER_CREATED',
+        };
+      }
+
+      let payment: PaymentDto;
+      try {
+        payment = await this.requestPayment(order, context);
+      } catch (error) {
+        await this.failCheckoutSession(order.id, context, getErrorMessage(error));
+        throw error;
+      }
+      const refreshedOrder = await this.fetchOrder(this.prisma, order.id);
+
       return {
-        order: mapOrder(order),
-        paymentProvider: this.config.paymentProvider,
-        status: 'ORDER_CREATED',
+        checkoutUrl: payment.checkoutUrl,
+        order: mapOrder(refreshedOrder),
+        payment,
+        paymentProvider: payment.provider,
+        status: payment.checkoutUrl ? 'PAYMENT_READY' : 'MOCK_PROCESSED',
       };
+    } catch (error) {
+      recordCheckoutFailed(this.config.serviceName);
+      throw error;
+    } finally {
+      const durationSeconds = Number(process.hrtime.bigint() - startedAt) / 1_000_000_000;
+      recordCheckoutDuration(this.config.serviceName, durationSeconds);
     }
-
-    const payment = await this.requestPayment(order, context);
-    const refreshedOrder = await this.fetchOrder(this.prisma, order.id);
-
-    return {
-      checkoutUrl: payment.checkoutUrl,
-      order: mapOrder(refreshedOrder),
-      payment,
-      paymentProvider: payment.provider,
-      status: payment.checkoutUrl ? 'PAYMENT_READY' : 'MOCK_PROCESSED',
-    };
   }
 
   async listOrders(payload: ListOrdersCommandPayload): Promise<readonly OrderDto[]> {
@@ -293,6 +330,7 @@ export class OrderService {
     });
 
     if (order) {
+      recordCheckoutFailed(this.config.serviceName);
       await this.publishStatusChanged(order, context);
       await this.publishOrderLifecycleEvent(order, ROUTING_KEYS.orderEventOrderCancelled, context);
     }
@@ -340,6 +378,7 @@ export class OrderService {
     }
 
     await this.publishStatusChanged(order, context);
+    recordCheckoutCompleted(this.config.serviceName);
     await this.publishOrderLifecycleEvent(order, ROUTING_KEYS.orderEventOrderConfirmed, context);
     await this.publishConfirmStockCommand(order, context);
     await this.publishClearCartCommand(order, context);
@@ -387,6 +426,7 @@ export class OrderService {
     }
 
     await this.publishStatusChanged(order, context);
+    recordCheckoutFailed(this.config.serviceName);
     await this.publishOrderLifecycleEvent(order, ROUTING_KEYS.orderEventOrderCancelled, context);
     await this.publishReleaseStockCommand(order, context);
   }
@@ -514,6 +554,7 @@ export class OrderService {
       data: { status },
       where: { id: order.id },
     });
+    recordOrderStatusMetric(status);
     await tx.orderStatusHistory.create({
       data: {
         changedBy: input.changedBy,
@@ -665,6 +706,43 @@ export class OrderService {
     });
   }
 
+  private async failCheckoutSession(
+    orderId: string,
+    context: MessageContext,
+    reason: string,
+  ): Promise<void> {
+    const order = await this.prisma.$transaction(async (tx) => {
+      const existingOrder = await tx.order.findUnique({ where: { id: orderId } });
+      if (!existingOrder || isTerminalOrder(existingOrder.status)) {
+        return undefined;
+      }
+
+      let currentOrder = existingOrder;
+      if (currentOrder.status !== 'FAILED') {
+        await this.transitionStatus(tx, currentOrder, 'FAILED', {
+          reason,
+        });
+        currentOrder = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
+      }
+
+      if (currentOrder.status !== 'CANCELLED') {
+        await this.transitionStatus(tx, currentOrder, 'CANCELLED', {
+          reason: 'Checkout was cancelled because the payment session could not be created.',
+        });
+      }
+
+      return this.fetchOrder(tx, orderId);
+    });
+
+    if (!order) {
+      return;
+    }
+
+    await this.publishStatusChanged(order, context);
+    await this.publishOrderLifecycleEvent(order, ROUTING_KEYS.orderEventOrderCancelled, context);
+    await this.publishReleaseStockCommand(order, context);
+  }
+
   private async publishPaymentRequestCommand(
     order: OrderWithRelations,
     context: MessageContext,
@@ -681,6 +759,22 @@ export class OrderService {
       ),
       routingKey: ROUTING_KEYS.paymentCommandRequestPayment,
     });
+  }
+}
+
+function recordOrderStatusMetric(status: OrderStatus): void {
+  if (status === 'CONFIRMED') {
+    recordOrderConfirmed('order-service');
+    return;
+  }
+
+  if (status === 'CANCELLED') {
+    recordOrderCancelled('order-service');
+    return;
+  }
+
+  if (status === 'FAILED') {
+    recordOrderFailed('order-service');
   }
 }
 
@@ -772,4 +866,12 @@ function buildPaymentItems(order: OrderWithRelations): readonly PaymentPreferenc
     title: item.productTitle,
     unitPrice: toNumber(item.unitPrice),
   }));
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return 'Payment session creation failed.';
 }

@@ -1,4 +1,4 @@
-.PHONY: install dev images infra-up bootstrap up start down logs build lint test test-e2e test-e2e-live deploy deploy-infra deploy-reconcile deploy-preflight deploy-secrets deploy-images deploy-migrate deploy-seed deploy-services ensure-deploy-image-tag deploy-plan deploy-status deploy-stop destroy clean
+.PHONY: install dev images infra-up bootstrap up start down logs observability-logs build lint test test-e2e test-e2e-live deploy deploy-infra deploy-reconcile deploy-preflight deploy-secrets deploy-images deploy-migrate deploy-seed deploy-services ensure-deploy-image-tag deploy-plan deploy-status deploy-stop destroy clean
 
 COMPOSE_BAKE ?= true
 COMPOSE_PARALLEL_LIMIT ?= 4
@@ -59,6 +59,9 @@ down:
 
 logs:
 	docker compose logs --tail=100 -f
+
+observability-logs:
+	docker compose logs -f prometheus grafana loki alloy
 
 test:
 	npm test

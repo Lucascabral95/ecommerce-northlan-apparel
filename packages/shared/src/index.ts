@@ -3,6 +3,8 @@ export * from './config';
 export * from './correlation-id.middleware';
 export * from './errors';
 export * from './logger';
+export * from './metrics';
+export * from './observability.module';
 export * from './pagination';
 export * from './rabbitmq';
 export * from './result';
