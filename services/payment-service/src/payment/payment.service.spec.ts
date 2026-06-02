@@ -114,6 +114,56 @@ describe('PaymentService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('creates a Mercado Pago preference with absolute local return URLs', async () => {
+    config.providerMode = 'MERCADO_PAGO';
+    config.mercadoPagoAccessToken = 'test-access-token';
+    service = new PaymentService(config as never, prisma as never, rabbitMqClient as never);
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      json: async () => ({
+        id: 'preference-1',
+        init_point: 'https://mercadopago.test/checkout/preference-1',
+        sandbox_init_point: 'https://sandbox.mercadopago.test/checkout/preference-1',
+      }),
+      ok: true,
+    } as Response);
+
+    const payment = await service.processPayment(
+      {
+        ...BASE_PAYMENT,
+        currency: 'ARS',
+        idempotencyKey: 'order-mp-preference:payment',
+        orderId: 'order-mp-preference',
+        provider: 'MERCADO_PAGO',
+      },
+      testContext(),
+    );
+
+    const [, requestInit] = fetchMock.mock.calls[0] ?? [];
+    const body = JSON.parse(String(requestInit?.body)) as {
+      back_urls: {
+        failure: string;
+        pending: string;
+        success: string;
+      };
+      notification_url: string;
+    };
+
+    expect(payment).toMatchObject({
+      checkoutUrl: 'https://mercadopago.test/checkout/preference-1',
+      provider: 'MERCADO_PAGO',
+      providerPreferenceId: 'preference-1',
+      status: 'PENDING',
+    });
+    expect(body.back_urls).toEqual({
+      failure: 'http://localhost:3000/es/payment/failure?orderId=order-mp-preference',
+      pending: 'http://localhost:3000/es/payment/pending?orderId=order-mp-preference',
+      success: 'http://localhost:3000/es/payment/success?orderId=order-mp-preference',
+    });
+    expect(body.notification_url).toBe(
+      'http://localhost:4000/api/v1/payments/mercado-pago/webhook',
+    );
+  });
+
   it('processes Mercado Pago webhooks idempotently', async () => {
     config.providerMode = 'MERCADO_PAGO';
     config.mercadoPagoAccessToken = 'test-access-token';
@@ -177,6 +227,65 @@ describe('PaymentService', () => {
     expect(secondResult).toEqual({ ignored: true });
     expect(rabbitMqClient.routingKeys.filter((key) => key === 'payment.event.payment_succeeded')).toHaveLength(1);
   });
+
+  it('synchronizes a Mercado Pago preference using the provider payment id from the return URL', async () => {
+    config.providerMode = 'MERCADO_PAGO';
+    config.mercadoPagoAccessToken = 'test-access-token';
+    service = new PaymentService(config as never, prisma as never, rabbitMqClient as never);
+    prisma.payments.push({
+      amount: 180,
+      approvedAt: null,
+      cancelledAt: null,
+      checkoutUrl: 'https://mercadopago.test/checkout',
+      createdAt: new Date(),
+      currency: 'ARS',
+      expiredAt: null,
+      expiresAt: null,
+      externalReference: 'order-mp-sync',
+      failureReason: null,
+      id: '000000000099-0000-4000-8000-000000000000',
+      idempotencyKey: 'order-mp-sync:payment',
+      initPoint: 'https://mercadopago.test/checkout',
+      metadata: null,
+      orderId: 'order-mp-sync',
+      provider: 'MERCADO_PAGO',
+      providerPaymentId: null,
+      providerPreferenceId: 'pref-sync',
+      rawProviderStatus: 'preference_created',
+      rejectedAt: null,
+      requestHash: 'request-hash',
+      sandboxInitPoint: null,
+      status: 'PENDING',
+      updatedAt: new Date(),
+      userId: 'user-1',
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      json: async () => ({
+        currency_id: 'ARS',
+        external_reference: 'order-mp-sync',
+        id: 456,
+        status: 'approved',
+        transaction_amount: 180,
+      }),
+      ok: true,
+    } as Response);
+
+    const payment = await service.syncPaymentStatus(
+      {
+        orderId: 'order-mp-sync',
+        providerPaymentId: '456',
+        userId: 'user-1',
+      },
+      testContext(),
+    );
+
+    expect(payment).toMatchObject({
+      orderId: 'order-mp-sync',
+      providerPaymentId: '456',
+      status: 'APPROVED',
+    });
+    expect(rabbitMqClient.routingKeys).toContain('payment.event.payment_succeeded');
+  });
 });
 
 afterEach(() => {
@@ -191,9 +300,16 @@ function testContext() {
 }
 
 class FakePaymentConfig {
+  readonly apiGatewayBaseUrl = 'http://localhost:4000/api/v1';
+  readonly frontendBaseUrl = 'http://localhost:3000';
   readonly mockFailureAmount = 13.37;
   readonly mockForceFailure = false;
   mercadoPagoAccessToken: string | undefined;
+  readonly mercadoPagoFailureUrl = undefined;
+  readonly mercadoPagoNotificationUrl = undefined;
+  readonly mercadoPagoPendingUrl = undefined;
+  readonly mercadoPagoSuccessUrl = undefined;
+  readonly mercadoPagoWebhookUrl = undefined;
   readonly mercadoPagoWebhookSecret = undefined;
   providerMode: 'MERCADO_PAGO' | 'MOCK' = 'MOCK';
 }
@@ -300,9 +416,10 @@ class FakePaymentPrisma {
       this.payments.push(payment);
       return clone(payment);
     },
-    findFirst: async ({ where }: { where: { OR: Partial<FakePayment>[] } }) =>
+    findFirst: async ({ where }: { where: { OR: Partial<FakePayment>[]; userId?: string } }) =>
       clone(
         this.payments.find((payment) =>
+          (!where.userId || payment.userId === where.userId) &&
           where.OR.some((filter) =>
             Object.entries(filter).every(
               ([key, value]) => payment[key as keyof FakePayment] === value,

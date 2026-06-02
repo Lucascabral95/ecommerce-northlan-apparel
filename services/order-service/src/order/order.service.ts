@@ -21,6 +21,7 @@ import {
   PaymentProvider,
   PaymentSucceededEventPayload,
   PaymentDto,
+  PreferenceCreatedEventPayload,
   ROUTING_KEYS,
   StockReservationDto,
   StockReservationFailedEventPayload,
@@ -54,6 +55,8 @@ type TransactionClient = Omit<
 type CreateOrderOptions = Readonly<{
   publishReserveStockCommand: boolean;
 }>;
+
+type FailedPaymentStatus = 'CANCELLED' | 'EXPIRED' | 'REJECTED';
 
 const ORDER_INCLUDE = {
   items: {
@@ -387,6 +390,7 @@ export class OrderService {
   async handlePaymentFailed(
     payload: PaymentFailedEventPayload,
     context: MessageContext,
+    paymentStatus: FailedPaymentStatus = 'REJECTED',
   ): Promise<void> {
     const order = await this.prisma.$transaction(async (tx) => {
       const existingOrder = await tx.order.findUnique({ where: { id: payload.orderId } });
@@ -402,7 +406,7 @@ export class OrderService {
       let currentOrder = await tx.order.update({
         data: {
           paymentId: payload.paymentId,
-          paymentStatus: 'REJECTED',
+          paymentStatus,
         },
         where: { id: existingOrder.id },
       });
@@ -452,6 +456,38 @@ export class OrderService {
       if (currentOrder.status !== 'PAYMENT_PENDING') {
         await this.transitionStatus(tx, currentOrder, 'PAYMENT_PENDING', {
           reason: `Payment ${payload.paymentId} is pending provider confirmation.`,
+        });
+      }
+
+      return this.fetchOrder(tx, existingOrder.id);
+    });
+
+    if (order) {
+      await this.publishStatusChanged(order, context);
+    }
+  }
+
+  async handlePaymentPreferenceCreated(
+    payload: PreferenceCreatedEventPayload,
+    context: MessageContext,
+  ): Promise<void> {
+    const order = await this.prisma.$transaction(async (tx) => {
+      const existingOrder = await tx.order.findUnique({ where: { id: payload.orderId } });
+      if (!existingOrder || isTerminalOrder(existingOrder.status)) {
+        return undefined;
+      }
+
+      const currentOrder = await tx.order.update({
+        data: {
+          paymentId: payload.paymentId,
+          paymentStatus: 'PENDING',
+        },
+        where: { id: existingOrder.id },
+      });
+
+      if (currentOrder.status !== 'PAYMENT_PENDING') {
+        await this.transitionStatus(tx, currentOrder, 'PAYMENT_PENDING', {
+          reason: `Payment preference ${payload.providerPreferenceId} was created.`,
         });
       }
 

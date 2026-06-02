@@ -231,6 +231,7 @@ export class PaymentService {
 
     const payment = await this.prisma.payment.findFirst({
       where: {
+        ...(payload.userId ? { userId: payload.userId } : {}),
         OR: [
           ...(payload.providerPaymentId ? [{ providerPaymentId: payload.providerPaymentId }] : []),
           ...(payload.orderId ? [{ orderId: payload.orderId }] : []),
@@ -238,14 +239,19 @@ export class PaymentService {
       },
     });
 
-    if (!payment?.providerPaymentId) {
+    if (!payment) {
+      throw new BadRequestException('Payment was not found.');
+    }
+
+    const providerPaymentId = payload.providerPaymentId ?? payment.providerPaymentId;
+    if (!providerPaymentId) {
       throw new BadRequestException('Payment has no provider payment id to synchronize.');
     }
 
     const provider = this.resolveProvider(payment.provider as PaymentProvider);
     const providerStatus = await provider.getPaymentStatus({
       orderId: payment.orderId,
-      providerPaymentId: payment.providerPaymentId,
+      providerPaymentId,
     });
 
     const updatedPayment = await this.applyProviderStatus(providerStatus, undefined, context);

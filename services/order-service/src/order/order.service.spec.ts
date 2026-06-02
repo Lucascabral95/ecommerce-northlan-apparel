@@ -183,6 +183,31 @@ describe('OrderService', () => {
     expect(countRoutingKey(rabbitMqClient, ROUTING_KEYS.orderEventOrderCancelled)).toBe(1);
   });
 
+  it('keeps the order payment pending when a Mercado Pago preference is created', async () => {
+    const createdOrder = await createPaymentPendingOrder(service);
+
+    await service.handlePaymentPreferenceCreated(
+      {
+        checkoutUrl: 'https://mercadopago.test/checkout',
+        idempotencyKey: `${createdOrder.id}:payment`,
+        orderId: createdOrder.id,
+        paymentId: 'payment-preference-1',
+        provider: 'MERCADO_PAGO',
+        providerPreferenceId: 'preference-1',
+        userId: USER_ID,
+      },
+      testContext(),
+    );
+
+    const orderDetail = await service.getOrder({ orderId: createdOrder.id, userId: USER_ID });
+
+    expect(orderDetail.status).toBe('PAYMENT_PENDING');
+    expect(orderDetail.paymentId).toBe('payment-preference-1');
+    expect(orderDetail.paymentStatus).toBe('PENDING');
+    expect(countRoutingKey(rabbitMqClient, ROUTING_KEYS.inventoryCommandConfirmStock)).toBe(0);
+    expect(countRoutingKey(rabbitMqClient, ROUTING_KEYS.cartCommandClearCart)).toBe(0);
+  });
+
   it('confirms the order, confirms stock and clears the cart when payment succeeds', async () => {
     const createdOrder = await createPaymentPendingOrder(service);
 
@@ -271,6 +296,33 @@ describe('OrderService', () => {
       'CANCELLED',
     ]);
     expect(rabbitMqClient.routingKeys).toContain(ROUTING_KEYS.orderEventOrderCancelled);
+    expect(rabbitMqClient.routingKeys).toContain(ROUTING_KEYS.inventoryCommandReleaseStock);
+    expect(rabbitMqClient.routingKeys).not.toContain(ROUTING_KEYS.cartCommandClearCart);
+  });
+
+  it('preserves the provider cancellation status when payment is cancelled', async () => {
+    const createdOrder = await createPaymentPendingOrder(service);
+
+    await service.handlePaymentFailed(
+      {
+        amount: 180,
+        currency: 'USD',
+        failureReason: 'Payment was cancelled by the provider.',
+        idempotencyKey: 'checkout-payment-cancelled:payment',
+        orderId: createdOrder.id,
+        paymentId: 'payment-cancelled',
+        provider: 'MERCADO_PAGO',
+        providerPaymentId: 'mp-payment-cancelled',
+        userId: USER_ID,
+      },
+      testContext(),
+      'CANCELLED',
+    );
+
+    const orderDetail = await service.getOrder({ orderId: createdOrder.id, userId: USER_ID });
+
+    expect(orderDetail.status).toBe('CANCELLED');
+    expect(orderDetail.paymentStatus).toBe('CANCELLED');
     expect(rabbitMqClient.routingKeys).toContain(ROUTING_KEYS.inventoryCommandReleaseStock);
     expect(rabbitMqClient.routingKeys).not.toContain(ROUTING_KEYS.cartCommandClearCart);
   });

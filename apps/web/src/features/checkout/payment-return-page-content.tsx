@@ -3,8 +3,10 @@
 import { Link } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useEffect, useRef } from 'react';
 import { useOrder } from '../account/account-hooks';
 import { ErrorState } from '../../shared/ui/states';
+import { useSyncPaymentStatus } from './checkout-hook';
 
 export function PaymentReturnPageContent({
   outcome,
@@ -12,7 +14,31 @@ export function PaymentReturnPageContent({
   const t = useTranslations('checkout.paymentReturn');
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId') ?? searchParams.get('external_reference');
+  const providerPaymentId =
+    searchParams.get('payment_id') ?? searchParams.get('collection_id') ?? undefined;
   const order = useOrder(orderId ?? '');
+  const {
+    error: syncPaymentStatusError,
+    mutate: syncPaymentStatus,
+  } = useSyncPaymentStatus();
+  const syncedReturnKey = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!orderId || !providerPaymentId) {
+      return;
+    }
+
+    const returnKey = `${orderId}:${providerPaymentId}`;
+    if (syncedReturnKey.current === returnKey) {
+      return;
+    }
+
+    syncedReturnKey.current = returnKey;
+    syncPaymentStatus({
+      orderId,
+      providerPaymentId,
+    });
+  }, [orderId, providerPaymentId, syncPaymentStatus]);
 
   return (
     <section className="page-shell">
@@ -33,6 +59,8 @@ export function PaymentReturnPageContent({
             <p className="mt-2 text-3xl font-semibold">{order.data.status}</p>
             <p className="mt-2 text-sm text-[var(--muted)]">{order.data.orderNumber}</p>
           </div>
+        ) : syncPaymentStatusError ? (
+          <ErrorState message={syncPaymentStatusError.message} />
         ) : (
           <div className="mt-8 min-h-32 animate-pulse rounded-[1.5rem] bg-black/6" />
         )}
