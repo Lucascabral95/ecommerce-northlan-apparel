@@ -2,6 +2,13 @@ import { HttpException, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { connect, type Channel, type ChannelModel, type ConsumeMessage } from 'amqplib';
 import { randomUUID } from 'node:crypto';
 import { JsonLogger } from './logger';
+import {
+  recordRabbitMqConsumed,
+  recordRabbitMqDeadLetter,
+  recordRabbitMqFailed,
+  recordRabbitMqPublished,
+  recordRabbitMqRetried,
+} from './metrics';
 
 export type RabbitMqConfig = Readonly<{
   serviceName: string;
@@ -82,6 +89,7 @@ export class RabbitMqClient implements OnModuleDestroy {
   async publish(options: PublishOptions): Promise<void> {
     const channel = await this.getChannel();
     await this.assertExchange(options.exchange);
+    const messageType = getMessageType(options.message);
 
     channel.publish(
       options.exchange,
@@ -95,11 +103,18 @@ export class RabbitMqClient implements OnModuleDestroy {
         timestamp: Date.now(),
       },
     );
+    recordRabbitMqPublished({
+      exchange: options.exchange,
+      messageType,
+      routingKey: options.routingKey,
+      service: this.config.serviceName,
+    });
   }
 
   async request<TResponse = unknown>(options: RequestOptions): Promise<TResponse> {
     const channel = await this.getChannel();
     await this.assertExchange(options.exchange);
+    const messageType = getMessageType(options.message);
 
     const replyQueue = await channel.assertQueue('', {
       autoDelete: true,
@@ -150,6 +165,12 @@ export class RabbitMqClient implements OnModuleDestroy {
           timestamp: Date.now(),
         },
       );
+      recordRabbitMqPublished({
+        exchange: options.exchange,
+        messageType,
+        routingKey: options.routingKey,
+        service: this.config.serviceName,
+      });
     });
   }
 
@@ -218,6 +239,7 @@ export class RabbitMqClient implements OnModuleDestroy {
 
     try {
       const payload = parseJson<TRequest>(message.content);
+      const messageType = getMessageType(payload);
       const result = await handler(payload, message);
 
       if (message.properties.replyTo) {
@@ -228,9 +250,34 @@ export class RabbitMqClient implements OnModuleDestroy {
       }
 
       channel.ack(message);
+      recordRabbitMqConsumed({
+        exchange: message.fields.exchange,
+        messageType,
+        queue: options.queue,
+        routingKey: message.fields.routingKey,
+        service: this.config.serviceName,
+      });
     } catch (error) {
       const normalizedError = normalizeRpcError(error);
-      this.logger.error(normalizedError.message, undefined, 'RabbitMqClient');
+      const failedMessageType = getMessageTypeFromBuffer(message.content);
+      recordRabbitMqFailed({
+        exchange: message.fields.exchange,
+        messageType: failedMessageType,
+        queue: options.queue,
+        routingKey: message.fields.routingKey,
+        service: this.config.serviceName,
+      });
+      this.logger.writeWithContext('error', normalizedError.message, {
+        context: 'RabbitMqClient',
+        correlationId: message.properties.correlationId,
+        metadata: {
+          exchange: message.fields.exchange,
+          queue: options.queue,
+          routingKey: message.fields.routingKey,
+          eventType: failedMessageType,
+          error: normalizedError,
+        },
+      });
 
       if (message.properties.replyTo) {
         this.reply(message, {
@@ -247,6 +294,13 @@ export class RabbitMqClient implements OnModuleDestroy {
         return;
       }
 
+      recordRabbitMqDeadLetter({
+        exchange: message.fields.exchange,
+        messageType: failedMessageType,
+        queue: options.queue,
+        routingKey: message.fields.routingKey,
+        service: this.config.serviceName,
+      });
       channel.nack(message, false, false);
     }
   }
@@ -277,10 +331,20 @@ export class RabbitMqClient implements OnModuleDestroy {
       messageId: randomUUID(),
       timestamp: Date.now(),
     });
+    recordRabbitMqRetried({
+      exchange: options.retry.exchange,
+      messageType: getMessageTypeFromBuffer(message.content),
+      queue: options.queue,
+      routingKey: options.retry.routingKey,
+      service: this.config.serviceName,
+    });
     this.logger.writeWithContext('warn', `RabbitMQ message scheduled for retry ${retryCount}.`, {
       context: 'RabbitMqClient',
+      correlationId: message.properties.correlationId,
       metadata: {
+        exchange: options.retry.exchange,
         queue: options.queue,
+        routingKey: options.retry.routingKey,
         retryDelayMs: options.retry.delayMs,
         retryRoutingKey: options.retry.routingKey,
       },
@@ -330,6 +394,25 @@ export function createRabbitMqClient(config: RabbitMqConfig): RabbitMqClient {
 
 function parseJson<TValue>(buffer: Buffer): TValue {
   return JSON.parse(buffer.toString('utf8')) as TValue;
+}
+
+function getMessageType(message: unknown): string {
+  if (message && typeof message === 'object' && 'type' in message) {
+    const type = (message as { type?: unknown }).type;
+    if (typeof type === 'string' && type.trim().length > 0) {
+      return type;
+    }
+  }
+
+  return 'unknown';
+}
+
+function getMessageTypeFromBuffer(buffer: Buffer): string {
+  try {
+    return getMessageType(parseJson<unknown>(buffer));
+  } catch {
+    return 'unknown';
+  }
 }
 
 function normalizeRpcError(error: unknown): RpcError {

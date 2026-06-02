@@ -106,8 +106,9 @@ export function loadPaymentServiceConfig(
     ['MOCK', 'MERCADO_PAGO'],
     'MOCK',
   );
-  const apiGatewayBaseUrl = env.API_GATEWAY_BASE_URL ?? 'http://localhost:4000/api/v1';
-  const frontendBaseUrl = env.FRONTEND_BASE_URL ?? 'http://localhost:3000';
+  const apiGatewayBaseUrl =
+    optionalStringEnv(env.API_GATEWAY_BASE_URL) ?? 'http://localhost:4000/api/v1';
+  const frontendBaseUrl = optionalStringEnv(env.FRONTEND_BASE_URL) ?? 'http://localhost:3000';
   const mercadoPagoAccessToken = optionalStringEnv(env.MERCADO_PAGO_ACCESS_TOKEN);
   const mercadoPagoWebhookSecret = optionalStringEnv(env.MERCADO_PAGO_WEBHOOK_SECRET);
 

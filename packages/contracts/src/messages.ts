@@ -796,6 +796,7 @@ export type ProcessPaymentWebhookCommand = BaseCommand<
 export type SyncPaymentStatusCommandPayload = Readonly<{
   orderId?: string;
   providerPaymentId?: string;
+  userId?: string;
 }>;
 
 export type SyncPaymentStatusCommand = BaseCommand<

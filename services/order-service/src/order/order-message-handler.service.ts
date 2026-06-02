@@ -9,6 +9,7 @@ import {
   PaymentExpiredEvent,
   PaymentFailedEvent,
   PaymentPendingEvent,
+  PreferenceCreatedEvent,
   PaymentRejectedEvent,
   PaymentSucceededEvent,
   QUEUE_NAMES,
@@ -32,6 +33,7 @@ type PaymentEvent =
   | PaymentExpiredEvent
   | PaymentFailedEvent
   | PaymentPendingEvent
+  | PreferenceCreatedEvent
   | PaymentRejectedEvent
   | PaymentSucceededEvent;
 
@@ -160,6 +162,7 @@ export class OrderMessageHandlerService implements OnModuleInit {
           ROUTING_KEYS.paymentEventPaymentCancelled,
           ROUTING_KEYS.paymentEventPaymentExpired,
           ROUTING_KEYS.paymentEventPaymentPending,
+          ROUTING_KEYS.paymentEventPreferenceCreated,
           ROUTING_KEYS.paymentEventPaymentRejected,
           ROUTING_KEYS.paymentEventPaymentSucceeded,
         ],
@@ -180,13 +183,25 @@ export class OrderMessageHandlerService implements OnModuleInit {
           return { handled: true };
         }
 
+        if (event.type === ROUTING_KEYS.paymentEventPreferenceCreated) {
+          await this.orderService.handlePaymentPreferenceCreated(event.payload, context);
+          return { handled: true };
+        }
+
         if (
           event.type === ROUTING_KEYS.paymentEventPaymentCancelled ||
           event.type === ROUTING_KEYS.paymentEventPaymentExpired ||
           event.type === ROUTING_KEYS.paymentEventPaymentFailed ||
           event.type === ROUTING_KEYS.paymentEventPaymentRejected
         ) {
-          await this.orderService.handlePaymentFailed(event.payload, context);
+          const paymentStatus =
+            event.type === ROUTING_KEYS.paymentEventPaymentCancelled
+              ? 'CANCELLED'
+              : event.type === ROUTING_KEYS.paymentEventPaymentExpired
+                ? 'EXPIRED'
+                : 'REJECTED';
+
+          await this.orderService.handlePaymentFailed(event.payload, context, paymentStatus);
           return { handled: true };
         }
 

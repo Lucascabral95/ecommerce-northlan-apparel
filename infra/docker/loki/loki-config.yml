@@ -1,0 +1,36 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      object_store: filesystem
+      schema: v13
+      store: tsdb
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  filesystem:
+    directory: /loki/chunks
+
+limits_config:
+  allow_structured_metadata: true
+  retention_period: 168h
+
+compactor:
+  retention_enabled: true
+  working_directory: /loki/compactor
+  delete_request_store: filesystem

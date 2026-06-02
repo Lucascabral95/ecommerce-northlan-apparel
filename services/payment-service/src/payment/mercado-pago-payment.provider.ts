@@ -45,7 +45,11 @@ export class MercadoPagoPaymentProvider implements PaymentProviderAdapter {
     });
 
     if (!response.ok) {
-      throw new ServiceUnavailableException('Mercado Pago preference creation failed.');
+      throw createMercadoPagoRequestError(
+        'Mercado Pago preference creation failed.',
+        response.status,
+        await safeReadResponseBody(response),
+      );
     }
 
     const body = (await response.json()) as MercadoPagoPreferenceResponse;
@@ -78,7 +82,11 @@ export class MercadoPagoPaymentProvider implements PaymentProviderAdapter {
     );
 
     if (!response.ok) {
-      throw new ServiceUnavailableException('Mercado Pago payment status request failed.');
+      throw createMercadoPagoRequestError(
+        'Mercado Pago payment status request failed.',
+        response.status,
+        await safeReadResponseBody(response),
+      );
     }
 
     const body = (await response.json()) as MercadoPagoPaymentResponse;
@@ -109,19 +117,34 @@ function buildPreferenceBody(
   config: PaymentServiceConfigService,
 ) {
   const orderQuery = `orderId=${encodeURIComponent(input.orderId)}`;
+  const successUrl = buildReturnUrl(
+    config.mercadoPagoSuccessUrl,
+    config.frontendBaseUrl,
+    '/es/payment/success',
+    orderQuery,
+    'MERCADO_PAGO_SUCCESS_URL',
+  );
+  const failureUrl = buildReturnUrl(
+    config.mercadoPagoFailureUrl,
+    config.frontendBaseUrl,
+    '/es/payment/failure',
+    orderQuery,
+    'MERCADO_PAGO_FAILURE_URL',
+  );
+  const pendingUrl = buildReturnUrl(
+    config.mercadoPagoPendingUrl,
+    config.frontendBaseUrl,
+    '/es/payment/pending',
+    orderQuery,
+    'MERCADO_PAGO_PENDING_URL',
+  );
 
   return {
     auto_return: 'approved',
     back_urls: {
-      failure:
-        config.mercadoPagoFailureUrl ??
-        `${trimSlash(config.frontendBaseUrl)}/es/payment/failure?${orderQuery}`,
-      pending:
-        config.mercadoPagoPendingUrl ??
-        `${trimSlash(config.frontendBaseUrl)}/es/payment/pending?${orderQuery}`,
-      success:
-        config.mercadoPagoSuccessUrl ??
-        `${trimSlash(config.frontendBaseUrl)}/es/payment/success?${orderQuery}`,
+      failure: failureUrl,
+      pending: pendingUrl,
+      success: successUrl,
     },
     external_reference: input.orderId,
     items: input.items.map((item) => ({
@@ -136,13 +159,68 @@ function buildPreferenceBody(
       order_number: input.orderNumber,
       user_id: input.userId,
     },
-    notification_url:
-      config.mercadoPagoNotificationUrl ??
-      config.mercadoPagoWebhookUrl ??
-      `${trimSlash(config.apiGatewayBaseUrl)}/payments/mercado-pago/webhook`,
+    notification_url: buildNotificationUrl(config),
   };
 }
 
 function trimSlash(value: string): string {
   return value.replace(/\/+$/, '');
+}
+
+function buildReturnUrl(
+  configuredUrl: string | undefined,
+  frontendBaseUrl: string,
+  path: string,
+  query: string,
+  label: string,
+): string {
+  return requireAbsoluteHttpUrl(
+    configuredUrl ?? `${trimSlash(frontendBaseUrl)}${path}?${query}`,
+    label,
+  );
+}
+
+function buildNotificationUrl(config: PaymentServiceConfigService): string {
+  return requireAbsoluteHttpUrl(
+    config.mercadoPagoNotificationUrl ??
+      config.mercadoPagoWebhookUrl ??
+      `${trimSlash(config.apiGatewayBaseUrl)}/payments/mercado-pago/webhook`,
+    'MERCADO_PAGO_NOTIFICATION_URL',
+  );
+}
+
+function requireAbsoluteHttpUrl(value: string, label: string): string {
+  try {
+    const url = new URL(value);
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      return url.toString();
+    }
+  } catch {
+    // Fall through to the configuration error below.
+  }
+
+  throw new BadRequestException(`${label} must be an absolute http(s) URL for Mercado Pago.`);
+}
+
+async function safeReadResponseBody(response: Response): Promise<string | undefined> {
+  try {
+    const text = await response.text();
+    return text.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function createMercadoPagoRequestError(
+  baseMessage: string,
+  statusCode: number,
+  responseBody: string | undefined,
+) {
+  const message = responseBody ? `${baseMessage} ${responseBody}` : baseMessage;
+
+  if (statusCode >= 400 && statusCode < 500) {
+    return new BadRequestException(message);
+  }
+
+  return new ServiceUnavailableException(message);
 }

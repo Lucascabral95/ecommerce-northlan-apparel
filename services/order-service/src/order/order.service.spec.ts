@@ -147,6 +147,67 @@ describe('OrderService', () => {
     expect(rabbitMqClient.routingKeys).toContain('payment.command.request_payment');
   });
 
+  it('creates a checkout session without publishing a duplicate stock reservation command', async () => {
+    const session = await service.createCheckoutSession(
+      {
+        idempotencyKey: 'checkout-session-1',
+        userId: USER_ID,
+      },
+      testContext(),
+    );
+
+    expect(session.status).toBe('MOCK_PROCESSED');
+    expect(session.paymentProvider).toBe('MOCK');
+    expect(session.order.status).toBe('PAYMENT_PENDING');
+    expect(countRoutingKey(rabbitMqClient, ROUTING_KEYS.inventoryCommandReserveStock)).toBe(0);
+    expect(countRequestedRoutingKey(rabbitMqClient, ROUTING_KEYS.inventoryCommandReserveStock)).toBe(1);
+    expect(countRequestedRoutingKey(rabbitMqClient, ROUTING_KEYS.paymentCommandRequestPayment)).toBe(1);
+  });
+
+  it('cancels the checkout session and releases stock when payment session creation fails', async () => {
+    rabbitMqClient.failPaymentRequestsWith = new Error('Mercado Pago preference creation failed.');
+
+    await expect(
+      service.createCheckoutSession(
+        {
+          idempotencyKey: 'checkout-session-failed',
+          userId: USER_ID,
+        },
+        testContext(),
+      ),
+    ).rejects.toThrow('Mercado Pago preference creation failed.');
+
+    const order = prisma.orders[0];
+    expect(order?.status).toBe('CANCELLED');
+    expect(countRoutingKey(rabbitMqClient, ROUTING_KEYS.inventoryCommandReleaseStock)).toBe(1);
+    expect(countRoutingKey(rabbitMqClient, ROUTING_KEYS.orderEventOrderCancelled)).toBe(1);
+  });
+
+  it('keeps the order payment pending when a Mercado Pago preference is created', async () => {
+    const createdOrder = await createPaymentPendingOrder(service);
+
+    await service.handlePaymentPreferenceCreated(
+      {
+        checkoutUrl: 'https://mercadopago.test/checkout',
+        idempotencyKey: `${createdOrder.id}:payment`,
+        orderId: createdOrder.id,
+        paymentId: 'payment-preference-1',
+        provider: 'MERCADO_PAGO',
+        providerPreferenceId: 'preference-1',
+        userId: USER_ID,
+      },
+      testContext(),
+    );
+
+    const orderDetail = await service.getOrder({ orderId: createdOrder.id, userId: USER_ID });
+
+    expect(orderDetail.status).toBe('PAYMENT_PENDING');
+    expect(orderDetail.paymentId).toBe('payment-preference-1');
+    expect(orderDetail.paymentStatus).toBe('PENDING');
+    expect(countRoutingKey(rabbitMqClient, ROUTING_KEYS.inventoryCommandConfirmStock)).toBe(0);
+    expect(countRoutingKey(rabbitMqClient, ROUTING_KEYS.cartCommandClearCart)).toBe(0);
+  });
+
   it('confirms the order, confirms stock and clears the cart when payment succeeds', async () => {
     const createdOrder = await createPaymentPendingOrder(service);
 
@@ -238,6 +299,33 @@ describe('OrderService', () => {
     expect(rabbitMqClient.routingKeys).toContain(ROUTING_KEYS.inventoryCommandReleaseStock);
     expect(rabbitMqClient.routingKeys).not.toContain(ROUTING_KEYS.cartCommandClearCart);
   });
+
+  it('preserves the provider cancellation status when payment is cancelled', async () => {
+    const createdOrder = await createPaymentPendingOrder(service);
+
+    await service.handlePaymentFailed(
+      {
+        amount: 180,
+        currency: 'USD',
+        failureReason: 'Payment was cancelled by the provider.',
+        idempotencyKey: 'checkout-payment-cancelled:payment',
+        orderId: createdOrder.id,
+        paymentId: 'payment-cancelled',
+        provider: 'MERCADO_PAGO',
+        providerPaymentId: 'mp-payment-cancelled',
+        userId: USER_ID,
+      },
+      testContext(),
+      'CANCELLED',
+    );
+
+    const orderDetail = await service.getOrder({ orderId: createdOrder.id, userId: USER_ID });
+
+    expect(orderDetail.status).toBe('CANCELLED');
+    expect(orderDetail.paymentStatus).toBe('CANCELLED');
+    expect(rabbitMqClient.routingKeys).toContain(ROUTING_KEYS.inventoryCommandReleaseStock);
+    expect(rabbitMqClient.routingKeys).not.toContain(ROUTING_KEYS.cartCommandClearCart);
+  });
 });
 
 function testContext() {
@@ -281,12 +369,71 @@ class FakeCartClient {
 }
 
 class FakeRabbitMqClient {
+  failPaymentRequestsWith?: Error;
   readonly published: Array<{ message: { payload?: unknown }; routingKey: string }> = [];
+  readonly requested: Array<{ message: { payload?: unknown }; routingKey: string }> = [];
   readonly routingKeys: string[] = [];
+  readonly requestedRoutingKeys: string[] = [];
 
   async publish(input: { message: { payload?: unknown }; routingKey: string }): Promise<void> {
     this.published.push(input);
     this.routingKeys.push(input.routingKey);
+  }
+
+  async request<TResponse>(input: {
+    message: { payload?: unknown };
+    routingKey: string;
+  }): Promise<TResponse> {
+    this.requested.push(input);
+    this.requestedRoutingKeys.push(input.routingKey);
+
+    if (input.routingKey === ROUTING_KEYS.inventoryCommandReserveStock) {
+      const payload = input.message.payload as {
+        items: Array<{ quantity: number; sku: string; variantId: string }>;
+        orderId: string;
+        userId: string;
+      };
+
+      return {
+        expiresAt: new Date(Date.now() + 900_000).toISOString(),
+        items: payload.items,
+        orderId: payload.orderId,
+        reservationId: `reservation-${payload.orderId}`,
+        userId: payload.userId,
+      } as TResponse;
+    }
+
+    if (input.routingKey === ROUTING_KEYS.paymentCommandRequestPayment) {
+      if (this.failPaymentRequestsWith) {
+        throw this.failPaymentRequestsWith;
+      }
+
+      const payload = input.message.payload as {
+        amount: number;
+        currency: string;
+        idempotencyKey: string;
+        orderId: string;
+        provider: 'MOCK';
+        userId: string;
+      };
+
+      return {
+        amount: payload.amount,
+        checkoutUrl: null,
+        createdAt: new Date().toISOString(),
+        currency: payload.currency,
+        id: `payment-${payload.orderId}`,
+        idempotencyKey: payload.idempotencyKey,
+        orderId: payload.orderId,
+        provider: payload.provider,
+        providerPaymentId: `mock-${payload.orderId}`,
+        status: 'APPROVED',
+        updatedAt: new Date().toISOString(),
+        userId: payload.userId,
+      } as TResponse;
+    }
+
+    throw new Error(`Unexpected request routing key: ${input.routingKey}`);
   }
 }
 
@@ -593,4 +740,8 @@ async function createPaymentPendingOrder(service: OrderService) {
 
 function countRoutingKey(rabbitMqClient: FakeRabbitMqClient, routingKey: string): number {
   return rabbitMqClient.routingKeys.filter((candidate) => candidate === routingKey).length;
+}
+
+function countRequestedRoutingKey(rabbitMqClient: FakeRabbitMqClient, routingKey: string): number {
+  return rabbitMqClient.requestedRoutingKeys.filter((candidate) => candidate === routingKey).length;
 }

@@ -1,0 +1,80 @@
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "northlane_containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    regex         = "northlane-apparel"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "compose_service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  rule {
+    target_label = "environment"
+    replacement  = "local"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.northlane_containers.output
+  forward_to = [loki.process.container_logs.receiver]
+}
+
+loki.process "container_logs" {
+  stage.docker {}
+
+  stage.drop {
+    older_than          = "24h"
+    drop_counter_reason = "docker_log_too_old"
+  }
+
+  stage.json {
+    expressions = {
+      correlationId = "correlationId",
+      level         = "level",
+      requestId     = "requestId",
+      service       = "service",
+    }
+  }
+
+  stage.labels {
+    values = {
+      correlationId = "",
+      level         = "",
+      requestId     = "",
+      service       = "",
+    }
+  }
+
+  stage.static_labels {
+    values = {
+      environment = "local",
+    }
+  }
+
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

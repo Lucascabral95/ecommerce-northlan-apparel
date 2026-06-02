@@ -1,0 +1,50 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["prometheus:9090"]
+
+  - job_name: api-gateway
+    metrics_path: /api/v1/metrics
+    static_configs:
+      - targets: ["api-gateway:4000"]
+        labels:
+          service: api-gateway
+
+  - job_name: backend-services
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["auth-service:4101"]
+        labels:
+          service: auth-service
+      - targets: ["user-service:4102"]
+        labels:
+          service: user-service
+      - targets: ["catalog-service:4103"]
+        labels:
+          service: catalog-service
+      - targets: ["inventory-service:4104"]
+        labels:
+          service: inventory-service
+      - targets: ["cart-service:4105"]
+        labels:
+          service: cart-service
+      - targets: ["order-service:4106"]
+        labels:
+          service: order-service
+      - targets: ["payment-service:4107"]
+        labels:
+          service: payment-service
+      - targets: ["notification-service:4108"]
+        labels:
+          service: notification-service
+
+  - job_name: rabbitmq
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["rabbitmq:15692"]
+        labels:
+          service: rabbitmq

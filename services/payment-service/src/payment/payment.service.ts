@@ -12,7 +12,13 @@ import {
   ROUTING_KEYS,
   SyncPaymentStatusCommandPayload,
 } from '@northlane/contracts';
-import { RabbitMqClient } from '@northlane/shared';
+import {
+  RabbitMqClient,
+  recordPaymentCreated,
+  recordPaymentFailed,
+  recordPaymentPending,
+  recordPaymentSucceeded,
+} from '@northlane/shared';
 import { createHash } from 'node:crypto';
 import { Payment, PaymentStatus, Prisma, PrismaClient, WebhookEvent } from '../generated/prisma';
 import { PaymentServiceConfigService } from '../config/payment-service.config';
@@ -155,6 +161,8 @@ export class PaymentService {
     });
 
     if (result.isNewPayment) {
+      recordPaymentCreatedMetric(result.payment, this.config.serviceName);
+      recordPaymentStatusMetric(result.payment, this.config.serviceName);
       await this.publishPaymentEvent(result.eventRoutingKey, result.eventPayload, context);
     }
 
@@ -223,6 +231,7 @@ export class PaymentService {
 
     const payment = await this.prisma.payment.findFirst({
       where: {
+        ...(payload.userId ? { userId: payload.userId } : {}),
         OR: [
           ...(payload.providerPaymentId ? [{ providerPaymentId: payload.providerPaymentId }] : []),
           ...(payload.orderId ? [{ orderId: payload.orderId }] : []),
@@ -230,14 +239,19 @@ export class PaymentService {
       },
     });
 
-    if (!payment?.providerPaymentId) {
+    if (!payment) {
+      throw new BadRequestException('Payment was not found.');
+    }
+
+    const providerPaymentId = payload.providerPaymentId ?? payment.providerPaymentId;
+    if (!providerPaymentId) {
       throw new BadRequestException('Payment has no provider payment id to synchronize.');
     }
 
     const provider = this.resolveProvider(payment.provider as PaymentProvider);
     const providerStatus = await provider.getPaymentStatus({
       orderId: payment.orderId,
-      providerPaymentId: payment.providerPaymentId,
+      providerPaymentId,
     });
 
     const updatedPayment = await this.applyProviderStatus(providerStatus, undefined, context);
@@ -342,6 +356,7 @@ export class PaymentService {
     }
 
     if (result.event) {
+      recordPaymentStatusMetric(result.payment, this.config.serviceName);
       await this.publishPaymentEvent(result.event.routingKey, result.event.payload, context);
     }
 
@@ -399,6 +414,34 @@ export class PaymentService {
       where: { id: webhookEvent.id },
     });
   }
+}
+
+function recordPaymentCreatedMetric(payment: Payment, service: string): void {
+  recordPaymentCreated({
+    provider: payment.provider,
+    service,
+    status: payment.status,
+  });
+}
+
+function recordPaymentStatusMetric(payment: Payment, service: string): void {
+  const input = {
+    provider: payment.provider,
+    service,
+    status: payment.status,
+  };
+
+  if (payment.status === 'APPROVED') {
+    recordPaymentSucceeded(input);
+    return;
+  }
+
+  if (isFailurePaymentStatus(payment.status as PaymentStatus)) {
+    recordPaymentFailed(input);
+    return;
+  }
+
+  recordPaymentPending(input);
 }
 
 function buildProviderPreferenceInput(

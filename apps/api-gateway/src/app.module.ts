@@ -1,16 +1,14 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { CorrelationIdMiddleware } from '@northlane/shared';
+import { CorrelationIdMiddleware, ObservabilityModule } from '@northlane/shared';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { CartModule } from './cart/cart.module';
 import { CheckoutModule } from './checkout/checkout.module';
 import { CommonModule } from './common/common.module';
-import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { ApiGatewayConfigService } from './config/api-gateway-config.service';
 import { GatewayConfigModule } from './config/gateway-config.module';
-import { HealthModule } from './health/health.module';
 import { MeModule } from './me/me.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { OrdersModule } from './orders/orders.module';
@@ -32,7 +30,7 @@ import { ProductsModule } from './products/products.module';
         },
       ],
     }),
-    HealthModule,
+    ObservabilityModule.register({ serviceName: 'api-gateway' }),
     AuthModule,
     MeModule,
     ProductsModule,
@@ -51,6 +49,6 @@ import { ProductsModule } from './products/products.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(CorrelationIdMiddleware, RequestLoggerMiddleware).forRoutes('*');
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
   }
 }
