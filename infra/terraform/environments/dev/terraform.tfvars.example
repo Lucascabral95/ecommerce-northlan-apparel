@@ -12,6 +12,12 @@ environment = "dev"
 
 payment_provider = "MOCK"
 
+# Demo-only fallback for Mercado Pago on the default plain HTTP ALB.
+# When payment_provider = "MERCADO_PAGO" and certificate_arn is empty, Terraform enables this
+# automatically so Checkout Pro can return to the frontend and the app syncs status by payment_id.
+# Do not use this as the final production setup; add HTTPS and disable this mode.
+mercado_pago_http_demo_mode = false
+
 # Keep desired_count at 0 until ECR images are pushed and Secrets Manager values are populated.
 ecs_desired_count = 0
 image_tag         = "latest"

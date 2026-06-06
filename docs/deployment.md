@@ -87,7 +87,41 @@ https://app.example.com/es/payment/failure
 https://app.example.com/es/payment/pending
 ```
 
-Do not use the plain `http://<alb-dns-name>` endpoint for Mercado Pago.
+Do not use the plain `http://<alb-dns-name>` endpoint for the production-grade Mercado Pago flow.
+
+## Mercado Pago HTTP Demo
+
+For a temporary demo on the default ALB DNS over `http`, the repo supports a demo-grade Mercado Pago path. It creates real Checkout Pro preferences but omits `notification_url` and relies on the return page to synchronize the final payment status with Payment Service using the `payment_id` returned by Mercado Pago.
+
+Run deploy with Mercado Pago enabled:
+
+```powershell
+make deploy
+```
+
+`make deploy` automatically loads `.env` from the repository root. For this HTTP demo flow, keep these values in `.env`:
+
+```env
+AWS_PAYMENT_PROVIDER=MERCADO_PAGO
+MERCADO_PAGO_ACCESS_TOKEN=TEST-...
+MERCADO_PAGO_PUBLIC_KEY=TEST-...
+```
+
+If `AWS_PAYMENT_PROVIDER` is not set, the Makefile falls back to `PAYMENT_PROVIDER`.
+
+When there is no `certificate_arn`, Terraform automatically sets `MERCADO_PAGO_HTTP_DEMO_MODE=true` for ECS. The generated URLs are based on the ALB DNS:
+
+```text
+http://<alb-dns-name>/es/payment/success
+http://<alb-dns-name>/es/payment/failure
+http://<alb-dns-name>/es/payment/pending
+```
+
+This mode is provisional. It is acceptable for a sandbox/demo purchase flow, but the production path remains HTTPS with `certificate_arn`, `MERCADO_PAGO_HTTP_DEMO_MODE=false`, and webhook delivery through:
+
+```text
+https://<domain>/api/v1/payments/mercado-pago/webhook
+```
 
 ## Image Build And Push
 
@@ -161,6 +195,14 @@ postgresql://northlane:<password>@<rds-endpoint>:5432/northlane_platform?schema=
 ```
 
 RabbitMQ credentials are generated locally in `.aws-rabbitmq-password`, which is ignored by git. Keep that file if you want Terraform to keep the same Amazon MQ user password across repeated `make deploy` runs.
+
+To update Mercado Pago secrets without putting them in Terraform state:
+
+```powershell
+make deploy-secrets
+```
+
+`make deploy-secrets` also reads Mercado Pago values from `.env`.
 
 To use an externally managed RabbitMQ instead of Amazon MQ:
 

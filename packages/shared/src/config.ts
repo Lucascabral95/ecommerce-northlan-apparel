@@ -53,7 +53,7 @@ export function parseIntegerEnv(name: string, value: string | undefined, options
     throw new Error(`${name} is required.`);
   }
 
-  const parsedValue = Number(value);
+  const parsedValue = Number(normalizeConfigScalar(value));
   if (!Number.isInteger(parsedValue)) {
     throw new Error(`${name} must be an integer.`);
   }
@@ -78,7 +78,7 @@ export function parseBooleanEnv(name: string, value: string | undefined, fallbac
     throw new Error(`${name} is required.`);
   }
 
-  const normalizedValue = value.trim().toLowerCase();
+  const normalizedValue = normalizeConfigScalar(value).toLowerCase();
   if (['1', 'true', 'yes', 'y'].includes(normalizedValue)) {
     return true;
   }
@@ -104,9 +104,15 @@ export function parseEnumEnv<TValue extends string>(
     throw new Error(`${name} is required.`);
   }
 
-  if (allowedValues.includes(value as TValue)) {
-    return value as TValue;
+  const normalizedValue = normalizeConfigScalar(value);
+
+  if (allowedValues.includes(normalizedValue as TValue)) {
+    return normalizedValue as TValue;
   }
 
   throw new Error(`${name} must be one of: ${allowedValues.join(', ')}.`);
+}
+
+function normalizeConfigScalar(value: string): string {
+  return value.replace(/\s+#.*$/, '').trim();
 }

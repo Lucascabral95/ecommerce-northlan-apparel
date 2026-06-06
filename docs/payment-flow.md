@@ -51,10 +51,31 @@ Required for Mercado Pago mode:
 | `MERCADO_PAGO_FAILURE_URL` | Frontend failure return URL. |
 | `MERCADO_PAGO_PENDING_URL` | Frontend pending return URL. |
 | `MERCADO_PAGO_NOTIFICATION_URL` | Public API Gateway webhook URL. |
+| `MERCADO_PAGO_HTTP_DEMO_MODE` | Demo-only mode for plain HTTP ALB. When `true`, Payment Service omits `notification_url` from Checkout Pro preferences and relies on return URL status sync. |
 | `FRONTEND_BASE_URL` | Frontend base URL used for safe fallbacks. |
 | `API_GATEWAY_BASE_URL` | API Gateway base URL used for safe fallbacks. |
 
 Local `.env.example` values intentionally contain placeholders only.
+
+## AWS HTTP Demo Mode
+
+The preferred Mercado Pago flow uses HTTPS and webhook processing. For a temporary AWS demo on the default plain HTTP ALB, set:
+
+```bash
+PAYMENT_PROVIDER=MERCADO_PAGO
+MERCADO_PAGO_HTTP_DEMO_MODE=true
+```
+
+In Terraform dev, this mode is enabled automatically when `payment_provider = "MERCADO_PAGO"` and no `certificate_arn` is configured. In this mode:
+
+- Checkout Pro still creates a real Mercado Pago preference.
+- `back_urls` point to the public ALB frontend URL.
+- The browser return page reads Mercado Pago's `payment_id` or `collection_id`.
+- The frontend calls API Gateway to synchronize payment status with Payment Service.
+- Payment Service queries Mercado Pago before publishing success/failure events.
+- `notification_url` is omitted from the preference, so webhook delivery is best effort only if configured outside this demo path.
+
+This is only for demos where HTTPS is not available yet. The production completion step is to add HTTPS, set `MERCADO_PAGO_HTTP_DEMO_MODE=false`, and use the webhook URL as the reliable provider notification path.
 
 ## Webhook Security
 

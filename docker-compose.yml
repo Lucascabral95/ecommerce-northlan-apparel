@@ -34,6 +34,7 @@ x-platform-env: &platform-env
   MERCADO_PAGO_FAILURE_URL: ${MERCADO_PAGO_FAILURE_URL:-http://localhost:3000/es/payment/failure}
   MERCADO_PAGO_PENDING_URL: ${MERCADO_PAGO_PENDING_URL:-http://localhost:3000/es/payment/pending}
   MERCADO_PAGO_NOTIFICATION_URL: ${MERCADO_PAGO_NOTIFICATION_URL:-}
+  MERCADO_PAGO_HTTP_DEMO_MODE: ${MERCADO_PAGO_HTTP_DEMO_MODE:-false}
   RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-northlane}:${RABBITMQ_DEFAULT_PASS:-northlane}@rabbitmq:5672
   REDIS_URL: redis://redis:6379
 

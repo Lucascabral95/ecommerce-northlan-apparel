@@ -5,6 +5,7 @@ import { JsonLogger } from '@northlane/shared';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { setupSwagger } from './common/swagger/setup-swagger';
 import { ApiGatewayConfigService, loadApiGatewayConfig } from './config/api-gateway-config.service';
 
 const bootstrapConfig = loadApiGatewayConfig();
@@ -17,8 +18,9 @@ async function bootstrap(): Promise<void> {
 
   const config = app.get(ApiGatewayConfigService);
 
-  app.use(helmet());
   app.setGlobalPrefix('api/v1');
+  setupSwagger(app);
+  app.use(helmet());
   app.enableCors({
     origin: config.corsOrigins,
     credentials: true,

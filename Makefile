@@ -1,5 +1,10 @@
 .PHONY: install dev images infra-up bootstrap up start down logs observability-logs build lint test test-e2e test-e2e-live deploy deploy-infra deploy-reconcile deploy-preflight deploy-secrets deploy-images deploy-migrate deploy-seed deploy-services ensure-deploy-image-tag deploy-plan deploy-status deploy-stop destroy clean
 
+ifneq (,$(wildcard .env))
+include .env
+export
+endif
+
 COMPOSE_BAKE ?= true
 COMPOSE_PARALLEL_LIMIT ?= 4
 TF_ENV ?= dev
@@ -22,12 +27,23 @@ AWS_REGION ?= us-east-1
 AWS_ECS_CLUSTER ?= northlane-apparel-dev-cluster
 AWS_ECS_DESIRED_COUNT ?= 1
 AWS_ECS_SERVICES ?= web api-gateway auth-service user-service catalog-service inventory-service cart-service order-service payment-service notification-service
+AWS_PAYMENT_PROVIDER ?= $(firstword $(PAYMENT_PROVIDER))
+AWS_MERCADO_PAGO_HTTP_DEMO_MODE ?=
+MERCADO_PAGO_ACCESS_TOKEN ?=
+MERCADO_PAGO_PUBLIC_KEY ?=
+MERCADO_PAGO_WEBHOOK_SECRET ?=
 AWS_RABBITMQ_URL ?=
 AWS_ENABLE_RABBITMQ ?= true
 AWS_RABBITMQ_USERNAME ?= northlane
 AWS_RABBITMQ_PASSWORD_FILE ?= .aws-rabbitmq-password
 AWS_RABBITMQ_PASSWORD ?= $(shell powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Test-Path '$(AWS_RABBITMQ_PASSWORD_FILE)') { (Get-Content '$(AWS_RABBITMQ_PASSWORD_FILE)' -Raw).Trim() } else { $$password = (([guid]::NewGuid().ToString('N')) + ([guid]::NewGuid().ToString('N'))).Substring(0, 32); Set-Content -NoNewline -Path '$(AWS_RABBITMQ_PASSWORD_FILE)' -Value $$password; $$password }")
 TF_DEPLOY_VARS := -var="image_tag=$(AWS_DEPLOY_IMAGE_TAG)"
+ifneq ($(strip $(AWS_PAYMENT_PROVIDER)),)
+TF_DEPLOY_VARS += -var="payment_provider=$(AWS_PAYMENT_PROVIDER)"
+endif
+ifneq ($(strip $(AWS_MERCADO_PAGO_HTTP_DEMO_MODE)),)
+TF_DEPLOY_VARS += -var="mercado_pago_http_demo_mode=$(AWS_MERCADO_PAGO_HTTP_DEMO_MODE)"
+endif
 ifeq ($(AWS_ENABLE_RABBITMQ),true)
 TF_DEPLOY_VARS += -var="enable_rabbitmq=true" -var="rabbitmq_username=$(AWS_RABBITMQ_USERNAME)" -var="rabbitmq_password=$(AWS_RABBITMQ_PASSWORD)"
 endif
@@ -115,7 +131,7 @@ deploy-seed: ensure-deploy-image-tag
 
 deploy-secrets:
 	@echo Configuring AWS Secrets Manager values...
-	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/configure-ecs-secrets.ps1 -TerraformDir "$(TF_DIR)" -Region "$(AWS_REGION)" -RabbitMqUrl "$(AWS_RABBITMQ_URL)" -RabbitMqUsername "$(AWS_RABBITMQ_USERNAME)" -RabbitMqPassword "$(AWS_RABBITMQ_PASSWORD)"
+	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/configure-ecs-secrets.ps1 -TerraformDir "$(TF_DIR)" -Region "$(AWS_REGION)" -RabbitMqUrl "$(AWS_RABBITMQ_URL)" -RabbitMqUsername "$(AWS_RABBITMQ_USERNAME)" -RabbitMqPassword "$(AWS_RABBITMQ_PASSWORD)" -MercadoPagoAccessToken "$(MERCADO_PAGO_ACCESS_TOKEN)" -MercadoPagoPublicKey "$(MERCADO_PAGO_PUBLIC_KEY)" -MercadoPagoWebhookSecret "$(MERCADO_PAGO_WEBHOOK_SECRET)"
 
 deploy-plan:
 	terraform -chdir=$(TF_DIR) init

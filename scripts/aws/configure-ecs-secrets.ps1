@@ -3,7 +3,10 @@ param(
   [string]$Region = "us-east-1",
   [string]$RabbitMqUrl = "",
   [string]$RabbitMqUsername = "",
-  [string]$RabbitMqPassword = ""
+  [string]$RabbitMqPassword = "",
+  [string]$MercadoPagoAccessToken = $env:MERCADO_PAGO_ACCESS_TOKEN,
+  [string]$MercadoPagoPublicKey = $env:MERCADO_PAGO_PUBLIC_KEY,
+  [string]$MercadoPagoWebhookSecret = $env:MERCADO_PAGO_WEBHOOK_SECRET
 )
 
 $ErrorActionPreference = "Stop"
@@ -143,6 +146,18 @@ if (-not [string]::IsNullOrWhiteSpace($RabbitMqUrl)) {
   Set-SecretValue -SecretArns $secretArns -Name "rabbitmq-url" -Value $RabbitMqUrl
 } elseif (-not (Test-SecretHasCurrent -SecretArns $secretArns -Name "rabbitmq-url")) {
   throw "rabbitmq-url has no AWSCURRENT value. Set AWS_RABBITMQ_URL and rerun make deploy-secrets, or keep AWS_ENABLE_RABBITMQ=true so Terraform provisions Amazon MQ before starting ECS services."
+}
+
+if (-not [string]::IsNullOrWhiteSpace($MercadoPagoAccessToken)) {
+  Set-SecretValue -SecretArns $secretArns -Name "mercado-pago-access-token" -Value $MercadoPagoAccessToken
+}
+
+if (-not [string]::IsNullOrWhiteSpace($MercadoPagoPublicKey)) {
+  Set-SecretValue -SecretArns $secretArns -Name "mercado-pago-public-key" -Value $MercadoPagoPublicKey
+}
+
+if (-not [string]::IsNullOrWhiteSpace($MercadoPagoWebhookSecret)) {
+  Set-SecretValue -SecretArns $secretArns -Name "mercado-pago-webhook-secret" -Value $MercadoPagoWebhookSecret
 }
 
 foreach ($name in @("mercado-pago-access-token", "mercado-pago-public-key", "mercado-pago-webhook-secret")) {

@@ -139,6 +139,8 @@ function buildPreferenceBody(
     'MERCADO_PAGO_PENDING_URL',
   );
 
+  const notificationUrl = buildNotificationUrl(config);
+
   return {
     auto_return: 'approved',
     back_urls: {
@@ -159,7 +161,7 @@ function buildPreferenceBody(
       order_number: input.orderNumber,
       user_id: input.userId,
     },
-    notification_url: buildNotificationUrl(config),
+    ...(notificationUrl ? { notification_url: notificationUrl } : {}),
   };
 }
 
@@ -180,7 +182,11 @@ function buildReturnUrl(
   );
 }
 
-function buildNotificationUrl(config: PaymentServiceConfigService): string {
+function buildNotificationUrl(config: PaymentServiceConfigService): string | undefined {
+  if (config.mercadoPagoHttpDemoMode) {
+    return undefined;
+  }
+
   return requireAbsoluteHttpUrl(
     config.mercadoPagoNotificationUrl ??
       config.mercadoPagoWebhookUrl ??
