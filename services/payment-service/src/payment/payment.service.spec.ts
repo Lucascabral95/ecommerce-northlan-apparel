@@ -164,6 +164,36 @@ describe('PaymentService', () => {
     );
   });
 
+  it('omits Mercado Pago notification URL in HTTP demo mode', async () => {
+    config.mercadoPagoHttpDemoMode = true;
+    config.providerMode = 'MERCADO_PAGO';
+    config.mercadoPagoAccessToken = 'test-access-token';
+    service = new PaymentService(config as never, prisma as never, rabbitMqClient as never);
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      json: async () => ({
+        id: 'preference-http-demo',
+        init_point: 'https://mercadopago.test/checkout/preference-http-demo',
+      }),
+      ok: true,
+    } as Response);
+
+    await service.processPayment(
+      {
+        ...BASE_PAYMENT,
+        currency: 'ARS',
+        idempotencyKey: 'order-http-demo:payment',
+        orderId: 'order-http-demo',
+        provider: 'MERCADO_PAGO',
+      },
+      testContext(),
+    );
+
+    const [, requestInit] = fetchMock.mock.calls[0] ?? [];
+    const body = JSON.parse(String(requestInit?.body)) as { notification_url?: string };
+
+    expect(body.notification_url).toBeUndefined();
+  });
+
   it('processes Mercado Pago webhooks idempotently', async () => {
     config.providerMode = 'MERCADO_PAGO';
     config.mercadoPagoAccessToken = 'test-access-token';
@@ -302,6 +332,7 @@ function testContext() {
 class FakePaymentConfig {
   readonly apiGatewayBaseUrl = 'http://localhost:4000/api/v1';
   readonly frontendBaseUrl = 'http://localhost:3000';
+  mercadoPagoHttpDemoMode = false;
   readonly mockFailureAmount = 13.37;
   readonly mockForceFailure = false;
   mercadoPagoAccessToken: string | undefined;

@@ -69,6 +69,12 @@ variable "payment_provider" {
   }
 }
 
+variable "mercado_pago_http_demo_mode" {
+  description = "Enable demo-grade Mercado Pago Checkout Pro over plain HTTP ALB by relying on return URL sync and omitting webhook notification_url."
+  type        = bool
+  default     = false
+}
+
 variable "image_tag" {
   description = "ECR image tag used by all ECS task definitions. make deploy passes a fresh timestamp tag."
   type        = string

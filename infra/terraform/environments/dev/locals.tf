@@ -31,6 +31,9 @@ locals {
   inferred_base_url = "${local.alb_scheme}://${module.alb.alb_dns_name}"
   frontend_base_url = trimspace(var.frontend_base_url) != "" ? trimspace(var.frontend_base_url) : local.inferred_base_url
   api_base_url      = trimspace(var.api_gateway_base_url) != "" ? trimspace(var.api_gateway_base_url) : "${local.frontend_base_url}/api/v1"
+  mercado_pago_http_demo_mode = var.payment_provider == "MERCADO_PAGO" && (
+    var.mercado_pago_http_demo_mode || local.alb_scheme == "http"
+  )
 
   secret_names = toset(concat(
     [
@@ -66,6 +69,7 @@ locals {
     JWT_REFRESH_TOKEN_EXPIRES_IN_DAYS = "30"
     LOG_LEVEL                         = "info"
     MERCADO_PAGO_FAILURE_URL          = "${local.frontend_base_url}/es/payment/failure"
+    MERCADO_PAGO_HTTP_DEMO_MODE       = tostring(local.mercado_pago_http_demo_mode)
     MERCADO_PAGO_NOTIFICATION_URL     = "${local.api_base_url}/payments/mercado-pago/webhook"
     MERCADO_PAGO_PENDING_URL          = "${local.frontend_base_url}/es/payment/pending"
     MERCADO_PAGO_SUCCESS_URL          = "${local.frontend_base_url}/es/payment/success"

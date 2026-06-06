@@ -16,6 +16,7 @@
     "@nestjs/common": "^11.1.21",
     "@nestjs/core": "^11.1.21",
     "@nestjs/platform-express": "^11.1.21",
+    "@nestjs/swagger": "^11.4.4",
     "@nestjs/throttler": "^6.5.0",
     "@northlane/contracts": "0.1.0",
     "@northlane/shared": "0.1.0",
