@@ -1,5 +1,6 @@
 'use client';
 
+import { Link } from '@/i18n/navigation';
 import { useRouter } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -18,6 +19,11 @@ export function CheckoutPageContent() {
   const checkout = useCheckout();
   const router = useRouter();
   const [addressId, setAddressId] = useState<string>();
+  const defaultAddress = addresses.data?.find((address) => address.isDefault);
+  const selectedAddressId = addressId ?? defaultAddress?.id;
+  const hasAddress = (addresses.data?.length ?? 0) > 0;
+  const isAddressRequired = addresses.isSuccess && !hasAddress;
+  const cannotPlaceOrder = checkout.isPending || addresses.isLoading || !selectedAddressId;
 
   if (cart.error) {
     return (
@@ -77,20 +83,25 @@ export function CheckoutPageContent() {
               ))}
               {addresses.data?.length === 0 ? (
                 <p className="rounded-[1.4rem] border border-[var(--line)] p-4 text-[var(--muted)]">
-                  No stored address yet. The order can be created now and address data can be added
-                  in your account.
+                  {t('missingAddress')}
+                  <Link className="ml-1 font-semibold text-[var(--ink)] underline" href="/account/addresses">
+                    {t('addAddress')}
+                  </Link>
                 </p>
               ) : null}
             </div>
             <Button
               className="mt-6"
-              disabled={checkout.isPending}
+              disabled={cannotPlaceOrder}
               onClick={() => {
-                const defaultAddress = addresses.data?.find((address) => address.isDefault);
+                if (!selectedAddressId) {
+                  return;
+                }
+
                 checkout.mutate(
                   {
                     idempotencyKey: createStableId('checkout'),
-                    shippingAddressId: addressId ?? defaultAddress?.id,
+                    shippingAddressId: selectedAddressId,
                   },
                   {
                     onSuccess: (session) => {
@@ -106,7 +117,13 @@ export function CheckoutPageContent() {
               }}
               type="button"
             >
-              {checkout.isPending ? t('creating') : t('placeOrder')}
+              {checkout.isPending
+                ? t('creating')
+                : addresses.isLoading
+                  ? t('loadingAddresses')
+                : isAddressRequired
+                  ? t('addressRequiredCta')
+                  : t('placeOrder')}
             </Button>
           </section>
           <CheckoutSummary cart={cart.data} />

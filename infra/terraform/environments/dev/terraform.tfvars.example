@@ -12,6 +12,10 @@ environment = "dev"
 
 payment_provider = "MOCK"
 
+# For HTTP-only ALB demos with Mercado Pago this is enabled automatically.
+# Set false only after configuring HTTPS and a public webhook URL.
+# mercado_pago_http_demo_mode = true
+
 # Keep desired_count at 0 until ECR images are pushed and Secrets Manager values are populated.
 ecs_desired_count = 0
 image_tag         = "latest"

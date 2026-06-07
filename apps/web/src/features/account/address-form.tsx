@@ -9,6 +9,7 @@ import { ARGENTINA_COUNTRY_NAME, ARGENTINA_PROVINCES } from './argentina-locatio
 import { createAddressSchema, type AddressValues } from './address-validation';
 
 export function AddressForm() {
+  const t = useTranslations('account.addressForm');
   const validation = useTranslations('validation');
   const mutation = useCreateAddress();
   const addressSchema = createAddressSchema(validation);
@@ -39,22 +40,22 @@ export function AddressForm() {
         }),
       )}
     >
-      <Field error={form.formState.errors.alias?.message} label="Alias">
+      <Field error={form.formState.errors.alias?.message} label={t('alias')}>
         <input className="field" {...form.register('alias')} />
       </Field>
-      <Field error={form.formState.errors.recipientName?.message} label="Recipient">
+      <Field error={form.formState.errors.recipientName?.message} label={t('recipient')}>
         <input className="field" {...form.register('recipientName')} />
       </Field>
-      <Field error={form.formState.errors.phone?.message} label="Phone">
+      <Field error={form.formState.errors.phone?.message} label={t('phone')}>
         <input className="field" {...form.register('phone')} />
       </Field>
-      <Field error={form.formState.errors.country?.message} label="Country">
+      <Field error={form.formState.errors.country?.message} label={t('country')}>
         <input className="field cursor-not-allowed opacity-80" readOnly {...form.register('country')} />
       </Field>
-      <Field error={form.formState.errors.province?.message} label="Province">
+      <Field error={form.formState.errors.province?.message} label={t('province')}>
         <select className="field" defaultValue="" {...form.register('province')}>
           <option value="" disabled>
-            Select a province
+            {t('selectProvince')}
           </option>
           {ARGENTINA_PROVINCES.map((province) => (
             <option key={province} value={province}>
@@ -63,31 +64,31 @@ export function AddressForm() {
           ))}
         </select>
       </Field>
-      <Field error={form.formState.errors.city?.message} label="City">
+      <Field error={form.formState.errors.city?.message} label={t('city')}>
         <input className="field" {...form.register('city')} />
       </Field>
-      <Field error={form.formState.errors.postalCode?.message} label="Postal code">
+      <Field error={form.formState.errors.postalCode?.message} label={t('postalCode')}>
         <input className="field" {...form.register('postalCode')} />
       </Field>
-      <Field error={form.formState.errors.street?.message} label="Street">
+      <Field error={form.formState.errors.street?.message} label={t('street')}>
         <input className="field" {...form.register('street')} />
       </Field>
-      <Field error={form.formState.errors.streetNumber?.message} label="Street number">
+      <Field error={form.formState.errors.streetNumber?.message} label={t('streetNumber')}>
         <input className="field" {...form.register('streetNumber')} />
       </Field>
-      <Field label="Apartment / floor">
+      <Field label={t('apartment')}>
         <input className="field" {...form.register('apartment')} />
       </Field>
-      <Field label="References">
+      <Field label={t('references')}>
         <input className="field" {...form.register('references')} />
       </Field>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <label className="inline-flex items-center gap-2 text-sm font-semibold">
           <input type="checkbox" {...form.register('isDefault')} />
-          Default address
+          {t('defaultAddress')}
         </label>
         <Button disabled={mutation.isPending} type="submit">
-          {mutation.isPending ? 'Saving' : 'Add address'}
+          {mutation.isPending ? t('saving') : t('addAddress')}
         </Button>
       </div>
     </form>

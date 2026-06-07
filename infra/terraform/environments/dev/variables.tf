@@ -69,6 +69,12 @@ variable "payment_provider" {
   }
 }
 
+variable "mercado_pago_http_demo_mode" {
+  description = "Omit Mercado Pago notification_url for HTTP-only ALB demo environments. Leave null to enable automatically when payment_provider is MERCADO_PAGO and HTTPS is not configured."
+  type        = bool
+  default     = null
+}
+
 variable "image_tag" {
   description = "ECR image tag used by all ECS task definitions. make deploy passes a fresh timestamp tag."
   type        = string

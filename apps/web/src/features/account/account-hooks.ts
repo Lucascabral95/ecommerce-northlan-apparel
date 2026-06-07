@@ -2,6 +2,7 @@
 
 import type { OrderStatus } from '@northlane/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { queryKeys } from '../../shared/api/query-keys';
 import { useToastStore } from '../../shared/ui/toast';
 import {
@@ -57,12 +58,13 @@ export function useOrder(id: string) {
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
   const pushToast = useToastStore((state) => state.push);
+  const t = useTranslations('account.toasts');
   return useMutation({
     mutationFn: updateProfile,
-    onError: () => pushToast('Profile update failed.', 'error'),
+    onError: () => pushToast(t('profileUpdateFailed'), 'error'),
     onSuccess: (profile) => {
       queryClient.setQueryData(queryKeys.profile, profile);
-      pushToast('Profile saved.');
+      pushToast(t('profileSaved'));
     },
   });
 }
@@ -70,12 +72,13 @@ export function useUpdateProfile() {
 export function useCreateAddress() {
   const queryClient = useQueryClient();
   const pushToast = useToastStore((state) => state.push);
+  const t = useTranslations('account.toasts');
   return useMutation({
     mutationFn: createAddress,
-    onError: () => pushToast('Address could not be saved.', 'error'),
+    onError: () => pushToast(t('addressSaveFailed'), 'error'),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.addresses });
-      pushToast('Address saved.');
+      pushToast(t('addressSaved'));
     },
   });
 }

@@ -34,15 +34,19 @@ export class MercadoPagoPaymentProvider implements PaymentProviderAdapter {
     input: CreatePaymentPreferenceInput,
   ): Promise<CreatePaymentPreferenceResult> {
     const accessToken = this.requireAccessToken();
-    const response = await fetch(`${MERCADO_PAGO_API_BASE_URL}/checkout/preferences`, {
-      body: JSON.stringify(buildPreferenceBody(input, this.config)),
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        'X-Idempotency-Key': input.idempotencyKey,
+    const response = await fetchMercadoPago(
+      `${MERCADO_PAGO_API_BASE_URL}/checkout/preferences`,
+      {
+        body: JSON.stringify(buildPreferenceBody(input, this.config)),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'X-Idempotency-Key': input.idempotencyKey,
+        },
+        method: 'POST',
       },
-      method: 'POST',
-    });
+      'Mercado Pago preference creation failed.',
+    );
 
     if (!response.ok) {
       throw createMercadoPagoRequestError(
@@ -71,7 +75,7 @@ export class MercadoPagoPaymentProvider implements PaymentProviderAdapter {
 
   async getPaymentStatus(input: GetPaymentStatusInput): Promise<ProviderPaymentStatusResult> {
     const accessToken = this.requireAccessToken();
-    const response = await fetch(
+    const response = await fetchMercadoPago(
       `${MERCADO_PAGO_API_BASE_URL}/v1/payments/${encodeURIComponent(input.providerPaymentId)}`,
       {
         headers: {
@@ -79,6 +83,7 @@ export class MercadoPagoPaymentProvider implements PaymentProviderAdapter {
         },
         method: 'GET',
       },
+      'Mercado Pago payment status request failed.',
     );
 
     if (!response.ok) {
@@ -116,36 +121,11 @@ function buildPreferenceBody(
   input: CreatePaymentPreferenceInput,
   config: PaymentServiceConfigService,
 ) {
-  const orderQuery = `orderId=${encodeURIComponent(input.orderId)}`;
-  const successUrl = buildReturnUrl(
-    config.mercadoPagoSuccessUrl,
-    config.frontendBaseUrl,
-    '/es/payment/success',
-    orderQuery,
-    'MERCADO_PAGO_SUCCESS_URL',
-  );
-  const failureUrl = buildReturnUrl(
-    config.mercadoPagoFailureUrl,
-    config.frontendBaseUrl,
-    '/es/payment/failure',
-    orderQuery,
-    'MERCADO_PAGO_FAILURE_URL',
-  );
-  const pendingUrl = buildReturnUrl(
-    config.mercadoPagoPendingUrl,
-    config.frontendBaseUrl,
-    '/es/payment/pending',
-    orderQuery,
-    'MERCADO_PAGO_PENDING_URL',
-  );
+  const notificationUrl = buildNotificationUrl(config);
 
   return {
-    auto_return: 'approved',
-    back_urls: {
-      failure: failureUrl,
-      pending: pendingUrl,
-      success: successUrl,
-    },
+    ...(config.mercadoPagoHttpDemoMode ? {} : { auto_return: 'approved' }),
+    ...(config.mercadoPagoHttpDemoMode ? {} : { back_urls: buildBackUrls(input, config) }),
     external_reference: input.orderId,
     items: input.items.map((item) => ({
       currency_id: input.currency,
@@ -159,7 +139,38 @@ function buildPreferenceBody(
       order_number: input.orderNumber,
       user_id: input.userId,
     },
-    notification_url: buildNotificationUrl(config),
+    ...(notificationUrl ? { notification_url: notificationUrl } : {}),
+  };
+}
+
+function buildBackUrls(
+  input: CreatePaymentPreferenceInput,
+  config: PaymentServiceConfigService,
+) {
+  const orderQuery = `orderId=${encodeURIComponent(input.orderId)}`;
+
+  return {
+    failure: buildReturnUrl(
+      config.mercadoPagoFailureUrl,
+      config.frontendBaseUrl,
+      '/es/payment/failure',
+      orderQuery,
+      'MERCADO_PAGO_FAILURE_URL',
+    ),
+    pending: buildReturnUrl(
+      config.mercadoPagoPendingUrl,
+      config.frontendBaseUrl,
+      '/es/payment/pending',
+      orderQuery,
+      'MERCADO_PAGO_PENDING_URL',
+    ),
+    success: buildReturnUrl(
+      config.mercadoPagoSuccessUrl,
+      config.frontendBaseUrl,
+      '/es/payment/success',
+      orderQuery,
+      'MERCADO_PAGO_SUCCESS_URL',
+    ),
   };
 }
 
@@ -180,7 +191,11 @@ function buildReturnUrl(
   );
 }
 
-function buildNotificationUrl(config: PaymentServiceConfigService): string {
+function buildNotificationUrl(config: PaymentServiceConfigService): string | undefined {
+  if (config.mercadoPagoHttpDemoMode) {
+    return undefined;
+  }
+
   return requireAbsoluteHttpUrl(
     config.mercadoPagoNotificationUrl ??
       config.mercadoPagoWebhookUrl ??
@@ -223,4 +238,24 @@ function createMercadoPagoRequestError(
   }
 
   return new ServiceUnavailableException(message);
+}
+
+async function fetchMercadoPago(
+  url: string,
+  init: RequestInit,
+  failureMessage: string,
+): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (error) {
+    throw new ServiceUnavailableException(`${failureMessage} ${getNetworkErrorMessage(error)}`);
+  }
+}
+
+function getNetworkErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return 'Mercado Pago API is unreachable.';
 }

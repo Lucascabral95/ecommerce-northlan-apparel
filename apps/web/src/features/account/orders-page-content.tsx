@@ -1,23 +1,25 @@
 'use client';
 
 import { Link } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
 import { formatDate, formatMoney } from '../../shared/format';
 import { EmptyState, ErrorState } from '../../shared/ui/states';
 import { useOrders } from './account-hooks';
 
 export function OrdersPageContent() {
+  const t = useTranslations('account.ordersPage');
   const orders = useOrders();
 
   return (
     <div>
-      <p className="eyebrow">Orders</p>
-      <h1 className="display-title mt-4 text-6xl md:text-8xl">Purchase history</h1>
+      <p className="eyebrow">{t('eyebrow')}</p>
+      <h1 className="display-title mt-4 text-6xl md:text-8xl">{t('title')}</h1>
       <div className="mt-7 grid gap-3">
         {orders.error ? <ErrorState message={orders.error.message} /> : null}
         {orders.data?.length === 0 ? (
           <EmptyState
-            description="Completed checkout flows will remain here with product snapshots."
-            title="No orders yet."
+            description={t('emptyDescription')}
+            title={t('emptyTitle')}
           />
         ) : null}
         {orders.data?.map((order) => (

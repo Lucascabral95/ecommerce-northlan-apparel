@@ -1,28 +1,30 @@
 'use client';
 
 import { Link } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
 import { useAddresses, useOrders, useProfile } from './account-hooks';
 
 export function AccountOverview() {
+  const t = useTranslations('account.overviewPage');
   const profile = useProfile();
   const addresses = useAddresses();
   const orders = useOrders();
 
   return (
     <div>
-      <p className="eyebrow">Account</p>
+      <p className="eyebrow">{t('eyebrow')}</p>
       <h1 className="display-title mt-4 text-6xl md:text-8xl">
-        {profile.data?.firstName ? `${profile.data.firstName}'s lane` : 'Your lane'}
+        {profile.data?.firstName ? t('namedTitle', { name: profile.data.firstName }) : t('title')}
       </h1>
       <div className="mt-8 grid gap-4 md:grid-cols-3">
-        <Summary label="Orders" value={(orders.data?.length ?? 0).toString()} />
-        <Summary label="Addresses" value={(addresses.data?.length ?? 0).toString()} />
-        <Summary label="Email" value={profile.data?.email ?? 'Loading'} />
+        <Summary label={t('orders')} value={(orders.data?.length ?? 0).toString()} />
+        <Summary label={t('addresses')} value={(addresses.data?.length ?? 0).toString()} />
+        <Summary label={t('email')} value={profile.data?.email ?? t('loading')} />
       </div>
       <div className="surface mt-5 flex flex-wrap gap-3 rounded-[2rem] p-6">
-        <AccountLink href="/account/profile">Edit profile</AccountLink>
-        <AccountLink href="/account/addresses">Add address</AccountLink>
-        <AccountLink href="/account/orders">View orders</AccountLink>
+        <AccountLink href="/account/profile">{t('editProfile')}</AccountLink>
+        <AccountLink href="/account/addresses">{t('addAddress')}</AccountLink>
+        <AccountLink href="/account/orders">{t('viewOrders')}</AccountLink>
       </div>
     </div>
   );

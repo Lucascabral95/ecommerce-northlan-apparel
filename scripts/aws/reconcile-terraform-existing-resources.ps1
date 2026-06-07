@@ -39,7 +39,7 @@ function Invoke-Checked {
 function Get-TerraformStateSet {
   $chdirArgument = "-chdir=$TerraformDir"
   $result = Invoke-Checked -Executable "terraform" -Arguments @($chdirArgument, "state", "list") -AllowFailure
-  $state = New-Object 'System.Collections.Generic.HashSet[string]'
+  $state = New-StateSet
 
   if ($result.ExitCode -eq 0) {
     ($result.Output -split "`r?`n") |
@@ -50,6 +50,32 @@ function Get-TerraformStateSet {
   return $state
 }
 
+function New-StateSet {
+  return New-Object 'System.Collections.Generic.HashSet[string]'
+}
+
+function Normalize-CommandOutput {
+  param([string]$Output)
+
+  if ([string]::IsNullOrWhiteSpace($Output)) {
+    return ""
+  }
+
+  $withoutAnsi = $Output -replace "`e\[[0-9;?]*[ -/]*[@-~]", ""
+  return ($withoutAnsi -replace "\s+", " ").Trim()
+}
+
+function Test-TerraformAlreadyManagedMessage {
+  param([string]$Output)
+
+  $normalizedOutput = Normalize-CommandOutput -Output $Output
+  return (
+    $normalizedOutput -match "Resource already managed by Terraform" -or
+    $normalizedOutput -match "already managing a remote object" -or
+    $normalizedOutput -match "must first remove the existing object from the state"
+  )
+}
+
 function Import-TerraformResourceIfMissing {
   param(
     [System.Collections.Generic.HashSet[string]]$State,
@@ -57,6 +83,10 @@ function Import-TerraformResourceIfMissing {
     [string]$Id,
     [switch]$AllowFailure
   )
+
+  if ($null -eq $State) {
+    $State = New-StateSet
+  }
 
   if ($State.Contains($Address)) {
     Write-Host "Already in Terraform state: $Address"
@@ -68,7 +98,7 @@ function Import-TerraformResourceIfMissing {
   $result = Invoke-Checked -Executable "terraform" -Arguments @($chdirArgument, "import", $Address, $Id) -AllowFailure
   if ($result.ExitCode -eq 0) {
     [void]$State.Add($Address)
-  } elseif ($result.Output -match "Resource already managed by Terraform") {
+  } elseif (Test-TerraformAlreadyManagedMessage -Output $result.Output) {
     Write-Host "Already in Terraform state: $Address"
     [void]$State.Add($Address)
   } elseif ($AllowFailure) {
@@ -121,6 +151,10 @@ function Get-SecretNames {
 function Reconcile-EcrRepositories {
   param([System.Collections.Generic.HashSet[string]]$State)
 
+  if ($null -eq $State) {
+    $State = New-StateSet
+  }
+
   foreach ($repositoryName in Get-EcrRepositoryNames) {
     $describeResult = Invoke-Checked -Executable "aws" -Arguments @(
       "ecr", "describe-repositories",
@@ -143,6 +177,10 @@ function Reconcile-EcrRepositories {
 
 function Reconcile-Secrets {
   param([System.Collections.Generic.HashSet[string]]$State)
+
+  if ($null -eq $State) {
+    $State = New-StateSet
+  }
 
   foreach ($secretShortName in Get-SecretNames) {
     $secretName = "$ProjectName-$Environment/$secretShortName"
@@ -181,6 +219,11 @@ function Reconcile-Secrets {
 }
 
 $state = Get-TerraformStateSet
+
+if ($null -eq $state) {
+  $state = New-StateSet
+}
+
 Reconcile-EcrRepositories -State $state
 Reconcile-Secrets -State $state
 

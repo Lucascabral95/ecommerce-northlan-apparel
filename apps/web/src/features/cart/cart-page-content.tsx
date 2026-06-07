@@ -39,7 +39,7 @@ export function CartPageContent() {
               {formatMoney(cart.data.subtotal, cart.data.currency)}
             </p>
             <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
-              Shipping and tax snapshots are prepared during the checkout flow.
+              {t('checkoutPreparation')}
             </p>
             <Link
               className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--ink)] text-sm font-semibold uppercase tracking-[0.12em] ![color:#fff]"

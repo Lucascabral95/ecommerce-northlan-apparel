@@ -1,6 +1,7 @@
 'use client';
 
 import type { CategoryDto, ProductListFiltersDto } from '@northlane/contracts';
+import { useTranslations } from 'next-intl';
 import { Button } from '../../shared/ui/button';
 import type { ProductFilters } from './catalog-api';
 
@@ -15,19 +16,20 @@ export function ProductFilters({
   onChange: (filters: ProductFilters) => void;
   options?: ProductListFiltersDto;
 }>) {
+  const t = useTranslations('products.filters');
   const catalogCategories = options?.categories ?? categories ?? [];
 
   return (
     <aside className="surface rounded-[1.8rem] p-5">
       <div className="flex items-center justify-between gap-3">
-        <p className="eyebrow">Filters</p>
+        <p className="eyebrow">{t('title')}</p>
         <Button
           className="min-h-9 px-3 text-[0.65rem] cursor-pointer"
           intent="quiet"
           onClick={() => onChange({ sortBy: filters.sortBy })}
           type="button"
         >
-          Reset
+          {t('reset')}
         </Button>
       </div>
       <div className="mt-5 grid gap-3">
@@ -36,11 +38,12 @@ export function ProductFilters({
           onChange={(event) =>
             onChange({ ...filters, search: event.currentTarget.value || undefined })
           }
-          placeholder="Search collection"
+          placeholder={t('search')}
           value={filters.search ?? ''}
         />
         <Select
-          label="Category"
+          allLabel={t('all')}
+          label={t('category')}
           onChange={(categorySlug) => onChange({ ...filters, categorySlug })}
           options={catalogCategories.map((category) => ({
             label: category.name,
@@ -49,20 +52,23 @@ export function ProductFilters({
           value={filters.categorySlug}
         />
         <Select
-          label="Brand"
+          allLabel={t('all')}
+          label={t('brand')}
           onChange={(brand) => onChange({ ...filters, brand })}
           options={(options?.brands ?? []).map((brand) => ({ label: brand, value: brand }))}
           value={filters.brand}
         />
         <div className="grid grid-cols-2 gap-3">
           <Select
-            label="Size"
+            allLabel={t('all')}
+            label={t('size')}
             onChange={(size) => onChange({ ...filters, size })}
             options={(options?.sizes ?? []).map((size) => ({ label: size, value: size }))}
             value={filters.size}
           />
           <Select
-            label="Color"
+            allLabel={t('all')}
+            label={t('color')}
             onChange={(color) => onChange({ ...filters, color })}
             options={(options?.colors ?? []).map((color) => ({ label: color, value: color }))}
             value={filters.color}
@@ -75,7 +81,7 @@ export function ProductFilters({
             onChange={(event) =>
               onChange({ ...filters, minPrice: event.currentTarget.value || undefined })
             }
-            placeholder="Min price"
+            placeholder={t('minPrice')}
             value={filters.minPrice ?? ''}
           />
           <input
@@ -84,7 +90,7 @@ export function ProductFilters({
             onChange={(event) =>
               onChange({ ...filters, maxPrice: event.currentTarget.value || undefined })
             }
-            placeholder="Max price"
+            placeholder={t('maxPrice')}
             value={filters.maxPrice ?? ''}
           />
         </div>
@@ -94,11 +100,13 @@ export function ProductFilters({
 }
 
 function Select({
+  allLabel,
   label,
   onChange,
   options,
   value,
 }: Readonly<{
+  allLabel: string;
   label: string;
   onChange: (value: string | undefined) => void;
   options: readonly { label: string; value: string }[];
@@ -112,7 +120,7 @@ function Select({
         onChange={(event) => onChange(event.currentTarget.value || undefined)}
         value={value ?? ''}
       >
-        <option value="">All</option>
+        <option value="">{allLabel}</option>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
