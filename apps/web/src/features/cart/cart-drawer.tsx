@@ -46,7 +46,7 @@ export function CartDrawer() {
         <div className="mt-5 min-h-0 flex-1 overflow-y-auto">
           {!user ? (
             <EmptyState
-              description="Sign in to keep pieces, quantities and checkout state attached to your account."
+              description={t('signInDescription')}
               title={t('emptyTitle')}
             />
           ) : null}

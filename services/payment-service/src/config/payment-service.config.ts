@@ -14,6 +14,7 @@ export type PaymentServiceConfig = Readonly<{
   frontendBaseUrl: string;
   mercadoPagoAccessToken?: string;
   mercadoPagoFailureUrl?: string;
+  mercadoPagoHttpDemoMode: boolean;
   mercadoPagoNotificationUrl?: string;
   mercadoPagoPendingUrl?: string;
   mercadoPagoPublicKey?: string;
@@ -50,6 +51,10 @@ export class PaymentServiceConfigService {
 
   get mercadoPagoFailureUrl(): string | undefined {
     return this.config.mercadoPagoFailureUrl;
+  }
+
+  get mercadoPagoHttpDemoMode(): boolean {
+    return this.config.mercadoPagoHttpDemoMode;
   }
 
   get mercadoPagoNotificationUrl(): string | undefined {
@@ -122,6 +127,11 @@ export function loadPaymentServiceConfig(
     frontendBaseUrl,
     mercadoPagoAccessToken,
     mercadoPagoFailureUrl: optionalStringEnv(env.MERCADO_PAGO_FAILURE_URL),
+    mercadoPagoHttpDemoMode: parseBooleanEnv(
+      'MERCADO_PAGO_HTTP_DEMO_MODE',
+      env.MERCADO_PAGO_HTTP_DEMO_MODE,
+      false,
+    ),
     mercadoPagoNotificationUrl: optionalStringEnv(env.MERCADO_PAGO_NOTIFICATION_URL),
     mercadoPagoPendingUrl: optionalStringEnv(env.MERCADO_PAGO_PENDING_URL),
     mercadoPagoPublicKey: optionalStringEnv(env.MERCADO_PAGO_PUBLIC_KEY),

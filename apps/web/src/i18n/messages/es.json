@@ -155,6 +155,25 @@
     "pagination": "Mostrando {from}-{to} de {total}",
     "previous": "Anterior",
     "next": "Siguiente",
+    "filters": {
+      "title": "Filtros",
+      "reset": "Limpiar",
+      "search": "Buscar en la coleccion",
+      "category": "Categoria",
+      "brand": "Marca",
+      "size": "Talle",
+      "color": "Color",
+      "minPrice": "Precio minimo",
+      "maxPrice": "Precio maximo",
+      "all": "Todos"
+    },
+    "sort": {
+      "label": "Ordenar",
+      "newest": "Mas recientes",
+      "relevance": "Relevancia",
+      "priceAsc": "Precio ascendente",
+      "priceDesc": "Precio descendente"
+    },
     "detail": {
       "fit": "Calce",
       "material": "Material",
@@ -190,6 +209,96 @@
     "signInTitle": "Ingresa para continuar.",
     "signInDescription": "Tu bolsa, direcciones e historial de pedidos se mantienen dentro de tu cuenta.",
     "goToLogin": "Ir a ingresar",
+    "overviewPage": {
+      "eyebrow": "Cuenta",
+      "title": "Tu espacio",
+      "namedTitle": "Espacio de {name}",
+      "orders": "Pedidos",
+      "addresses": "Direcciones",
+      "email": "Email",
+      "loading": "Cargando",
+      "editProfile": "Editar perfil",
+      "addAddress": "Agregar direccion",
+      "viewOrders": "Ver pedidos"
+    },
+    "profilePage": {
+      "eyebrow": "Perfil",
+      "title": "Datos personales"
+    },
+    "profileForm": {
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "phone": "Telefono",
+      "birthDate": "Fecha de nacimiento",
+      "documentType": "Tipo de documento",
+      "documentNumber": "Numero de documento",
+      "preferredSizes": "Talles preferidos",
+      "preferredSizesPlaceholder": "S, M, L",
+      "preferredCategories": "Categorias preferidas",
+      "preferredCategoriesPlaceholder": "Sweaters, Jeans",
+      "gender": "Genero",
+      "saving": "Guardando",
+      "saveProfile": "Guardar perfil"
+    },
+    "addressesPage": {
+      "eyebrow": "Direcciones",
+      "title": "Puntos de entrega",
+      "default": "Predeterminada"
+    },
+    "addressForm": {
+      "alias": "Alias",
+      "recipient": "Destinatario",
+      "phone": "Telefono",
+      "country": "Pais",
+      "province": "Provincia",
+      "selectProvince": "Selecciona una provincia",
+      "city": "Ciudad",
+      "postalCode": "Codigo postal",
+      "street": "Calle",
+      "streetNumber": "Altura",
+      "apartment": "Departamento / piso",
+      "references": "Referencias",
+      "defaultAddress": "Direccion predeterminada",
+      "saving": "Guardando",
+      "addAddress": "Agregar direccion"
+    },
+    "ordersPage": {
+      "eyebrow": "Pedidos",
+      "title": "Historial de compras",
+      "emptyTitle": "Todavia no tenes pedidos.",
+      "emptyDescription": "Los checkouts completados van a quedar aca con el detalle de productos."
+    },
+    "orderDetail": {
+      "items": "Productos del pedido",
+      "timeline": "Seguimiento",
+      "itemDescription": "{quantity} x {color} / talle {size}",
+      "statuses": {
+        "PENDING": "Pendiente",
+        "STOCK_RESERVED": "Stock reservado",
+        "PAYMENT_PENDING": "Pago pendiente",
+        "PAID": "Pagado",
+        "PREPARING": "En preparacion",
+        "SHIPPED": "Enviado",
+        "CONFIRMED": "Confirmado",
+        "DELIVERED": "Entregado",
+        "FAILED": "Fallido",
+        "CANCELLED": "Cancelado",
+        "REFUNDED": "Reintegrado"
+      },
+      "reasons": {
+        "orderCreatedFromCart": "Pedido creado desde la bolsa activa.",
+        "stockReservationCompleted": "Reserva de stock {reservationId} completada.",
+        "paymentRequestPrepared": "Solicitud de pago preparada despues de reservar el stock.",
+        "mercadoPagoPreferenceFailed": "No pudimos crear la preferencia de Mercado Pago. {detail}",
+        "checkoutCancelledPaymentSession": "El checkout se cancelo porque no se pudo crear la sesion de pago."
+      }
+    },
+    "toasts": {
+      "profileUpdateFailed": "No pudimos actualizar el perfil.",
+      "profileSaved": "Perfil guardado.",
+      "addressSaveFailed": "No pudimos guardar la direccion.",
+      "addressSaved": "Direccion guardada."
+    },
     "security": {
       "eyebrow": "Seguridad de la cuenta",
       "title": "Tu acceso esta activo.",
@@ -214,7 +323,9 @@
     "viewBag": "Ver bolsa",
     "shopProducts": "Comprar productos",
     "continueShopping": "Seguir comprando",
-    "checkout": "Checkout"
+    "checkout": "Checkout",
+    "checkoutPreparation": "El envio y los impuestos se preparan durante el flujo de checkout.",
+    "signInDescription": "Ingresa para mantener piezas, cantidades y checkout asociados a tu cuenta."
   },
   "checkout": {
     "title": "Checkout",
@@ -225,9 +336,16 @@
     "emptyDescription": "El checkout comienza desde la bolsa activa.",
     "creating": "Creando pedido",
     "summary": "Resumen del pedido",
+    "subtotal": "Subtotal",
     "placeOrder": "Confirmar pedido",
     "success": "Checkout iniciado.",
     "failure": "No pudimos completar el checkout.",
+    "missingAddress": "Necesitas agregar una direccion de envio antes de confirmar el pedido.",
+    "addAddress": "Agregar direccion",
+    "addressRequiredCta": "Agrega una direccion para continuar",
+    "loadingAddresses": "Cargando direcciones",
+    "startError": "No pudimos iniciar el checkout. Revisa la bolsa e intenta de nuevo.",
+    "processingPayment": "Pedido creado. La confirmacion de pago se esta procesando.",
     "paymentReturn": {
       "success": {
         "eyebrow": "Pago recibido",

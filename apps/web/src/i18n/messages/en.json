@@ -155,6 +155,25 @@
     "pagination": "Showing {from}-{to} of {total}",
     "previous": "Previous",
     "next": "Next",
+    "filters": {
+      "title": "Filters",
+      "reset": "Reset",
+      "search": "Search collection",
+      "category": "Category",
+      "brand": "Brand",
+      "size": "Size",
+      "color": "Color",
+      "minPrice": "Min price",
+      "maxPrice": "Max price",
+      "all": "All"
+    },
+    "sort": {
+      "label": "Sort",
+      "newest": "Newest",
+      "relevance": "Relevance",
+      "priceAsc": "Price ascending",
+      "priceDesc": "Price descending"
+    },
     "detail": {
       "fit": "Fit",
       "material": "Material",
@@ -190,6 +209,96 @@
     "signInTitle": "Sign in to continue.",
     "signInDescription": "Your bag, addresses and order timeline stay behind the account boundary.",
     "goToLogin": "Go to login",
+    "overviewPage": {
+      "eyebrow": "Account",
+      "title": "Your lane",
+      "namedTitle": "{name}'s lane",
+      "orders": "Orders",
+      "addresses": "Addresses",
+      "email": "Email",
+      "loading": "Loading",
+      "editProfile": "Edit profile",
+      "addAddress": "Add address",
+      "viewOrders": "View orders"
+    },
+    "profilePage": {
+      "eyebrow": "Profile",
+      "title": "Fit details"
+    },
+    "profileForm": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "phone": "Phone",
+      "birthDate": "Birth date",
+      "documentType": "Document type",
+      "documentNumber": "Document number",
+      "preferredSizes": "Preferred sizes",
+      "preferredSizesPlaceholder": "S, M, L",
+      "preferredCategories": "Preferred categories",
+      "preferredCategoriesPlaceholder": "Sweaters, Jeans",
+      "gender": "Gender",
+      "saving": "Saving",
+      "saveProfile": "Save profile"
+    },
+    "addressesPage": {
+      "eyebrow": "Addresses",
+      "title": "Delivery stops",
+      "default": "Default"
+    },
+    "addressForm": {
+      "alias": "Alias",
+      "recipient": "Recipient",
+      "phone": "Phone",
+      "country": "Country",
+      "province": "Province",
+      "selectProvince": "Select a province",
+      "city": "City",
+      "postalCode": "Postal code",
+      "street": "Street",
+      "streetNumber": "Street number",
+      "apartment": "Apartment / floor",
+      "references": "References",
+      "defaultAddress": "Default address",
+      "saving": "Saving",
+      "addAddress": "Add address"
+    },
+    "ordersPage": {
+      "eyebrow": "Orders",
+      "title": "Purchase history",
+      "emptyTitle": "No orders yet.",
+      "emptyDescription": "Completed checkout flows will remain here with product snapshots."
+    },
+    "orderDetail": {
+      "items": "Order items",
+      "timeline": "Timeline",
+      "itemDescription": "{quantity} x {color} / size {size}",
+      "statuses": {
+        "PENDING": "Pending",
+        "STOCK_RESERVED": "Stock reserved",
+        "PAYMENT_PENDING": "Payment pending",
+        "PAID": "Paid",
+        "PREPARING": "Preparing",
+        "SHIPPED": "Shipped",
+        "CONFIRMED": "Confirmed",
+        "DELIVERED": "Delivered",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled",
+        "REFUNDED": "Refunded"
+      },
+      "reasons": {
+        "orderCreatedFromCart": "Order created from active cart.",
+        "stockReservationCompleted": "Stock reservation {reservationId} completed.",
+        "paymentRequestPrepared": "Payment request prepared after stock reservation.",
+        "mercadoPagoPreferenceFailed": "Mercado Pago preference creation failed. {detail}",
+        "checkoutCancelledPaymentSession": "Checkout was cancelled because the payment session could not be created."
+      }
+    },
+    "toasts": {
+      "profileUpdateFailed": "Profile update failed.",
+      "profileSaved": "Profile saved.",
+      "addressSaveFailed": "Address could not be saved.",
+      "addressSaved": "Address saved."
+    },
     "security": {
       "eyebrow": "Account security",
       "title": "Your account access is active.",
@@ -214,7 +323,9 @@
     "viewBag": "View bag",
     "shopProducts": "Shop products",
     "continueShopping": "Continue shopping",
-    "checkout": "Checkout"
+    "checkout": "Checkout",
+    "checkoutPreparation": "Shipping and tax snapshots are prepared during the checkout flow.",
+    "signInDescription": "Sign in to keep pieces, quantities and checkout state attached to your account."
   },
   "checkout": {
     "title": "Checkout",
@@ -225,9 +336,16 @@
     "emptyDescription": "Checkout starts from the active bag snapshot.",
     "creating": "Creating order",
     "summary": "Order summary",
+    "subtotal": "Subtotal",
     "placeOrder": "Place order",
     "success": "Checkout started.",
     "failure": "Checkout could not be completed.",
+    "missingAddress": "You need to add a shipping address before placing the order.",
+    "addAddress": "Add address",
+    "addressRequiredCta": "Add an address to continue",
+    "loadingAddresses": "Loading addresses",
+    "startError": "Checkout could not start. Review the bag and retry.",
+    "processingPayment": "Order created. Payment confirmation is processing.",
     "paymentReturn": {
       "success": {
         "eyebrow": "Payment received",

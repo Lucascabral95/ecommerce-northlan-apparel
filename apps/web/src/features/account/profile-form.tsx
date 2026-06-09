@@ -2,6 +2,7 @@
 
 import type { UserProfileDto } from '@northlane/contracts';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '../../shared/ui/button';
@@ -22,6 +23,7 @@ const profileSchema = z.object({
 type ProfileValues = z.infer<typeof profileSchema>;
 
 export function ProfileForm({ profile }: Readonly<{ profile: UserProfileDto }>) {
+  const t = useTranslations('account.profileForm');
   const mutation = useUpdateProfile();
   const form = useForm<ProfileValues>({
     defaultValues: {
@@ -49,40 +51,40 @@ export function ProfileForm({ profile }: Readonly<{ profile: UserProfileDto }>) 
         }),
       )}
     >
-      <Field error={form.formState.errors.firstName?.message} label="First name">
+      <Field error={form.formState.errors.firstName?.message} label={t('firstName')}>
         <input className="field" {...form.register('firstName')} />
       </Field>
-      <Field error={form.formState.errors.lastName?.message} label="Last name">
+      <Field error={form.formState.errors.lastName?.message} label={t('lastName')}>
         <input className="field" {...form.register('lastName')} />
       </Field>
-      <Field label="Phone">
+      <Field label={t('phone')}>
         <input className="field" {...form.register('phone')} />
       </Field>
-      <Field label="Birth date">
+      <Field label={t('birthDate')}>
         <input className="field" type="date" {...form.register('birthDate')} />
       </Field>
-      <Field label="Document type">
+      <Field label={t('documentType')}>
         <input className="field" {...form.register('documentType')} />
       </Field>
-      <Field label="Document number">
+      <Field label={t('documentNumber')}>
         <input className="field" {...form.register('documentNumber')} />
       </Field>
-      <Field label="Preferred sizes">
-        <input className="field" placeholder="S, M, L" {...form.register('preferredSizes')} />
+      <Field label={t('preferredSizes')}>
+        <input className="field" placeholder={t('preferredSizesPlaceholder')} {...form.register('preferredSizes')} />
       </Field>
-      <Field label="Preferred categories">
+      <Field label={t('preferredCategories')}>
         <input
           className="field"
-          placeholder="Hoodies, Jeans"
+          placeholder={t('preferredCategoriesPlaceholder')}
           {...form.register('preferredCategories')}
         />
       </Field>
-      <Field label="Gender">
+      <Field label={t('gender')}>
         <input className="field" {...form.register('gender')} />
       </Field>
       <div className="flex items-end md:justify-end">
         <Button disabled={mutation.isPending} type="submit">
-          {mutation.isPending ? 'Saving' : 'Save profile'}
+          {mutation.isPending ? t('saving') : t('saveProfile')}
         </Button>
       </div>
     </form>
