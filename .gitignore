@@ -24,3 +24,4 @@ crash.*.log
 .aws-rabbitmq-password
 .aws-deploy-image-tag
 .aws-deploy-bootstrap-required
+.aws-deploy-rds-resource-id

@@ -11,6 +11,7 @@ TF_DIR ?= infra/terraform/environments/$(TF_ENV)
 AWS_PAYMENT_PROVIDER ?= $(firstword $(PAYMENT_PROVIDER_MODE) $(PAYMENT_PROVIDER) MOCK)
 AWS_DEPLOY_IMAGE_TAG_FILE ?= .aws-deploy-image-tag
 AWS_DEPLOY_BOOTSTRAP_MARKER ?= .aws-deploy-bootstrap-required
+AWS_DEPLOY_RDS_RESOURCE_MARKER ?= .aws-deploy-rds-resource-id
 AWS_DEPLOY_IMAGE_TAG_DEFAULT := dev-$(shell powershell -NoProfile -Command "Get-Date -Format yyyyMMddHHmmss")
 AWS_DEPLOY_IMAGE_TAG_FROM_FILE := $(shell powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Test-Path '$(AWS_DEPLOY_IMAGE_TAG_FILE)') { (Get-Content '$(AWS_DEPLOY_IMAGE_TAG_FILE)' -Raw).Trim() }")
 AWS_DEPLOY_IMAGE_TAG_ORIGIN := $(origin AWS_DEPLOY_IMAGE_TAG)
@@ -86,8 +87,8 @@ build:
 
 # Terraform deployment
 deploy:
-	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/detect-deploy-bootstrap-needed.ps1 -Region "$(AWS_REGION)" -Cluster "$(AWS_ECS_CLUSTER)" -Services "$(AWS_ECS_SERVICES)" -MarkerPath "$(AWS_DEPLOY_BOOTSTRAP_MARKER)"
 	@$(MAKE) deploy-infra AWS_DEPLOY_IMAGE_TAG="$(AWS_DEPLOY_IMAGE_TAG)"
+	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/detect-deploy-bootstrap-needed.ps1 -TerraformDir "$(TF_DIR)" -Region "$(AWS_REGION)" -MarkerPath "$(AWS_DEPLOY_BOOTSTRAP_MARKER)" -DbResourceMarkerPath "$(AWS_DEPLOY_RDS_RESOURCE_MARKER)"
 	@$(MAKE) deploy-secrets AWS_DEPLOY_IMAGE_TAG="$(AWS_DEPLOY_IMAGE_TAG)"
 	@$(MAKE) deploy-images AWS_DEPLOY_IMAGE_TAG="$(AWS_DEPLOY_IMAGE_TAG)"
 	@$(MAKE) deploy-bootstrap-if-needed AWS_DEPLOY_IMAGE_TAG="$(AWS_DEPLOY_IMAGE_TAG)"
@@ -111,7 +112,7 @@ deploy-images:
 	@powershell -NoProfile -ExecutionPolicy Bypass -Command "Set-Content -NoNewline -Path '$(AWS_DEPLOY_IMAGE_TAG_FILE)' -Value '$(AWS_DEPLOY_IMAGE_TAG)'"
 
 deploy-bootstrap-if-needed: ensure-deploy-image-tag
-	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/run-deploy-bootstrap-if-needed.ps1 -MarkerPath "$(AWS_DEPLOY_BOOTSTRAP_MARKER)" -TerraformDir "$(TF_DIR)" -Region "$(AWS_REGION)"
+	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/run-deploy-bootstrap-if-needed.ps1 -MarkerPath "$(AWS_DEPLOY_BOOTSTRAP_MARKER)" -DbResourceMarkerPath "$(AWS_DEPLOY_RDS_RESOURCE_MARKER)" -TerraformDir "$(TF_DIR)" -Region "$(AWS_REGION)"
 
 ensure-deploy-image-tag:
 	@powershell -NoProfile -ExecutionPolicy Bypass -Command "if ('$(AWS_DEPLOY_IMAGE_TAG_ORIGIN)' -ne 'undefined') { exit 0 }; if (-not (Test-Path '$(AWS_DEPLOY_IMAGE_TAG_FILE)')) { throw 'No deployed image tag found. Run make deploy-images first, run make deploy, or pass AWS_DEPLOY_IMAGE_TAG=<tag> explicitly.' }"
@@ -150,6 +151,9 @@ destroy:
 	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/invoke-terraform.ps1 -TerraformDir "$(TF_DIR)" init
 	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/remove-ecr-from-terraform-state.ps1 -TerraformDir "$(TF_DIR)"
 	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/invoke-terraform.ps1 -TerraformDir "$(TF_DIR)" destroy
+# Destruir con esto 
+# cd infra/terraform/environments/dev
+# terraform destroy
 
 clean:
 	npm run clean

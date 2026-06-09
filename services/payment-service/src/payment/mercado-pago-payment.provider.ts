@@ -25,6 +25,10 @@ type MercadoPagoPaymentResponse = Readonly<{
   transaction_amount?: number;
 }>;
 
+type MercadoPagoPaymentSearchResponse = Readonly<{
+  results?: readonly MercadoPagoPaymentResponse[];
+}>;
+
 export class MercadoPagoPaymentProvider implements PaymentProviderAdapter {
   readonly provider = 'MERCADO_PAGO' as const;
 
@@ -75,32 +79,19 @@ export class MercadoPagoPaymentProvider implements PaymentProviderAdapter {
 
   async getPaymentStatus(input: GetPaymentStatusInput): Promise<ProviderPaymentStatusResult> {
     const accessToken = this.requireAccessToken();
-    const response = await fetchMercadoPago(
-      `${MERCADO_PAGO_API_BASE_URL}/v1/payments/${encodeURIComponent(input.providerPaymentId)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        method: 'GET',
-      },
-      'Mercado Pago payment status request failed.',
-    );
+    const body = input.providerPaymentId
+      ? await fetchMercadoPagoPaymentById(input.providerPaymentId, accessToken)
+      : await fetchLatestMercadoPagoPaymentByOrderId(input.orderId, accessToken);
 
-    if (!response.ok) {
-      throw createMercadoPagoRequestError(
-        'Mercado Pago payment status request failed.',
-        response.status,
-        await safeReadResponseBody(response),
-      );
-    }
-
-    const body = (await response.json()) as MercadoPagoPaymentResponse;
     const providerPaymentId = body.id?.toString() ?? input.providerPaymentId;
+    if (!providerPaymentId) {
+      throw new ServiceUnavailableException('Mercado Pago payment status response is incomplete.');
+    }
 
     return {
       amount: body.transaction_amount,
       currency: body.currency_id,
-      externalReference: body.external_reference,
+      externalReference: body.external_reference ?? input.orderId,
       providerPaymentId,
       rawProviderStatus: body.status ?? 'unknown',
       status: mapMercadoPagoStatus(body.status),
@@ -117,6 +108,76 @@ export class MercadoPagoPaymentProvider implements PaymentProviderAdapter {
   }
 }
 
+async function fetchMercadoPagoPaymentById(
+  providerPaymentId: string,
+  accessToken: string,
+): Promise<MercadoPagoPaymentResponse> {
+  const response = await fetchMercadoPago(
+    `${MERCADO_PAGO_API_BASE_URL}/v1/payments/${encodeURIComponent(providerPaymentId)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'GET',
+    },
+    'Mercado Pago payment status request failed.',
+  );
+
+  if (!response.ok) {
+    throw createMercadoPagoRequestError(
+      'Mercado Pago payment status request failed.',
+      response.status,
+      await safeReadResponseBody(response),
+    );
+  }
+
+  return (await response.json()) as MercadoPagoPaymentResponse;
+}
+
+async function fetchLatestMercadoPagoPaymentByOrderId(
+  orderId: string | undefined,
+  accessToken: string,
+): Promise<MercadoPagoPaymentResponse> {
+  if (!orderId) {
+    throw new BadRequestException(
+      'orderId or providerPaymentId is required to synchronize payment status.',
+    );
+  }
+
+  const searchParams = new URLSearchParams({
+    criteria: 'desc',
+    external_reference: orderId,
+    limit: '1',
+    sort: 'date_created',
+  });
+  const response = await fetchMercadoPago(
+    `${MERCADO_PAGO_API_BASE_URL}/v1/payments/search?${searchParams.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      method: 'GET',
+    },
+    'Mercado Pago payment search request failed.',
+  );
+
+  if (!response.ok) {
+    throw createMercadoPagoRequestError(
+      'Mercado Pago payment search request failed.',
+      response.status,
+      await safeReadResponseBody(response),
+    );
+  }
+
+  const body = (await response.json()) as MercadoPagoPaymentSearchResponse;
+  const latestPayment = body.results?.[0];
+  if (!latestPayment) {
+    throw new BadRequestException(`Mercado Pago payment was not found for order ${orderId}.`);
+  }
+
+  return latestPayment;
+}
+
 function buildPreferenceBody(
   input: CreatePaymentPreferenceInput,
   config: PaymentServiceConfigService,
@@ -125,7 +186,7 @@ function buildPreferenceBody(
 
   return {
     ...(config.mercadoPagoHttpDemoMode ? {} : { auto_return: 'approved' }),
-    ...(config.mercadoPagoHttpDemoMode ? {} : { back_urls: buildBackUrls(input, config) }),
+    back_urls: buildBackUrls(input, config),
     external_reference: input.orderId,
     items: input.items.map((item) => ({
       currency_id: input.currency,
@@ -192,10 +253,6 @@ function buildReturnUrl(
 }
 
 function buildNotificationUrl(config: PaymentServiceConfigService): string | undefined {
-  if (config.mercadoPagoHttpDemoMode) {
-    return undefined;
-  }
-
   return requireAbsoluteHttpUrl(
     config.mercadoPagoNotificationUrl ??
       config.mercadoPagoWebhookUrl ??

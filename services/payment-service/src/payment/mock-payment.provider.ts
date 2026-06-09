@@ -30,7 +30,7 @@ export class MockPaymentProvider implements PaymentProviderAdapter {
 
   async getPaymentStatus(input: GetPaymentStatusInput): Promise<ProviderPaymentStatusResult> {
     return {
-      providerPaymentId: input.providerPaymentId,
+      providerPaymentId: input.providerPaymentId ?? `mock_${input.orderId ?? randomUUID()}`,
       rawProviderStatus: 'approved',
       status: 'APPROVED',
     };

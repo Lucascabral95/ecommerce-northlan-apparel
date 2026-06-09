@@ -40,6 +40,12 @@ type RpcError = Readonly<{
   message: string;
 }>;
 
+type PendingRpcRequest<TResponse = unknown> = Readonly<{
+  reject: (error: Error) => void;
+  resolve: (value: TResponse) => void;
+  timeout: NodeJS.Timeout;
+}>;
+
 export type SubscribeOptions = Readonly<{
   deadLetter?: Readonly<{
     exchange: string;
@@ -77,6 +83,8 @@ export class RabbitMqClient implements OnModuleDestroy {
   private channel?: Channel;
   private connection?: ChannelModel;
   private readonly logger: JsonLogger;
+  private readonly pendingRpcRequests = new Map<string, PendingRpcRequest>();
+  private replyQueue?: string;
 
   constructor(private readonly config: RabbitMqConfig) {
     this.logger = new JsonLogger(config.serviceName);
@@ -115,42 +123,20 @@ export class RabbitMqClient implements OnModuleDestroy {
     const channel = await this.getChannel();
     await this.assertExchange(options.exchange);
     const messageType = getMessageType(options.message);
-
-    const replyQueue = await channel.assertQueue('', {
-      autoDelete: true,
-      durable: false,
-      exclusive: true,
-    });
-    const correlationId = options.correlationId ?? randomUUID();
+    const replyQueue = await this.getReplyQueue();
+    const rpcCorrelationId = randomUUID();
 
     return new Promise<TResponse>((resolve, reject) => {
       const timeout = setTimeout(() => {
+        this.pendingRpcRequests.delete(rpcCorrelationId);
         reject(new Error(`RabbitMQ request timed out for ${options.routingKey}.`));
       }, options.timeoutMs ?? DEFAULT_RPC_TIMEOUT_MS);
 
-      void channel.consume(
-        replyQueue.queue,
-        (message) => {
-          if (!message || message.properties.correlationId !== correlationId) {
-            return;
-          }
-
-          clearTimeout(timeout);
-          const response = parseJson<RpcResponse<TResponse>>(message.content);
-          if (!response.success) {
-            reject(
-              Object.assign(new Error(response.error.message), {
-                code: response.error.code,
-                details: response.error.details,
-              }),
-            );
-            return;
-          }
-
-          resolve(response.data);
-        },
-        { noAck: true },
-      );
+      this.pendingRpcRequests.set(rpcCorrelationId, {
+        reject,
+        resolve: resolve as (value: unknown) => void,
+        timeout,
+      });
 
       channel.publish(
         options.exchange,
@@ -158,10 +144,11 @@ export class RabbitMqClient implements OnModuleDestroy {
         Buffer.from(JSON.stringify(options.message)),
         {
           contentType: 'application/json',
-          correlationId,
+          correlationId: rpcCorrelationId,
           deliveryMode: 2,
+          headers: options.correlationId ? { 'x-correlation-id': options.correlationId } : undefined,
           messageId: randomUUID(),
-          replyTo: replyQueue.queue,
+          replyTo: replyQueue,
           timestamp: Date.now(),
         },
       );
@@ -370,6 +357,64 @@ export class RabbitMqClient implements OnModuleDestroy {
     });
   }
 
+  private async getReplyQueue(): Promise<string> {
+    if (this.replyQueue) {
+      return this.replyQueue;
+    }
+
+    const channel = await this.getChannel();
+    const replyQueue = await channel.assertQueue('', {
+      autoDelete: true,
+      durable: false,
+      exclusive: true,
+    });
+    this.replyQueue = replyQueue.queue;
+
+    await channel.consume(
+      this.replyQueue,
+      (message) => {
+        this.handleRpcReply(message);
+      },
+      { noAck: true },
+    );
+
+    return this.replyQueue;
+  }
+
+  private handleRpcReply<TResponse>(message: ConsumeMessage | null): void {
+    if (!message) {
+      return;
+    }
+
+    const correlationId = message.properties.correlationId;
+    if (!correlationId) {
+      return;
+    }
+
+    const pendingRequest = this.pendingRpcRequests.get(correlationId) as
+      | PendingRpcRequest<TResponse>
+      | undefined;
+    if (!pendingRequest) {
+      return;
+    }
+
+    this.pendingRpcRequests.delete(correlationId);
+    clearTimeout(pendingRequest.timeout);
+
+    const response = parseJson<RpcResponse<TResponse>>(message.content);
+    if (!response.success) {
+      pendingRequest.reject(
+        Object.assign(new Error(response.error.message), {
+          code: response.error.code,
+          details: response.error.details,
+        }),
+      );
+      return;
+    }
+
+    pendingRequest.resolve(response.data);
+  }
+
   private async getChannel(): Promise<Channel> {
     if (this.channel) {
       return this.channel;
@@ -381,10 +426,16 @@ export class RabbitMqClient implements OnModuleDestroy {
   }
 
   private async close(): Promise<void> {
+    for (const pendingRequest of this.pendingRpcRequests.values()) {
+      clearTimeout(pendingRequest.timeout);
+      pendingRequest.reject(new Error('RabbitMQ client is closing.'));
+    }
+    this.pendingRpcRequests.clear();
     await this.channel?.close();
     await this.connection?.close();
     this.channel = undefined;
     this.connection = undefined;
+    this.replyQueue = undefined;
   }
 }
 

@@ -7,7 +7,7 @@ This document covers the Phase 17 AWS/Terraform deployment path for the developm
 - Terraform `>= 1.7`.
 - AWS CLI authenticated to the target account.
 - Docker for building and pushing images.
-- An ACM certificate in the same region as the ALB for HTTPS.
+- An ACM certificate in the same region as the ALB for HTTPS when you want the full Mercado Pago webhook and return flow.
 - A DNS record pointing your domain to the ALB when you want Mercado Pago to call real HTTPS URLs.
 
 ## Terraform Layout
@@ -48,10 +48,11 @@ The deploy flow is:
 
 1. Run `terraform init`.
 2. Apply infrastructure with ECS desired count at `0`.
-3. Configure ECS secrets from Terraform outputs and the AWS-managed RDS master secret.
-4. Build and push one Docker image per ECS service to its own ECR repository.
-5. Run Prisma migrations as ECS one-off tasks inside the VPC.
-6. Run a final Terraform apply with ECS desired count at `1` so task definitions point at the pushed images.
+3. Detect whether the current RDS DB instance has already been bootstrapped.
+4. Configure ECS secrets from Terraform outputs and the AWS-managed RDS master secret.
+5. Build and push one Docker image per ECS service to its own ECR repository.
+6. Run Prisma migrations and catalog seed as ECS one-off tasks only when the current RDS DB instance has not been bootstrapped yet.
+7. Run a final Terraform apply with ECS desired count at `1` so task definitions point at the pushed images.
 
 For the least noisy workflow, run the checks separately first:
 
@@ -87,7 +88,31 @@ https://app.example.com/es/payment/failure
 https://app.example.com/es/payment/pending
 ```
 
-Do not use the plain `http://<alb-dns-name>` endpoint for Mercado Pago.
+For a complete production-grade payment flow, do not use the plain `http://<alb-dns-name>` endpoint for Mercado Pago webhook or automatic return URLs.
+
+## HTTP ALB Mercado Pago Demo Mode
+
+The dev environment can still open the real Mercado Pago Checkout Pro UI from the HTTP-only ALB. When `payment_provider=MERCADO_PAGO` and `certificate_arn` is empty, Terraform automatically sets:
+
+```text
+MERCADO_PAGO_HTTP_DEMO_MODE=true
+```
+
+In this mode Payment Service creates the preference without `auto_return`, but keeps `back_urls` and `notification_url`. This avoids Mercado Pago rejecting the preference with `invalid_auto_return` while still giving the app a chance to synchronize the payment status after the buyer finishes checkout.
+
+The expected behavior in HTTP demo mode is:
+
+- `POST /api/v1/checkout` creates a real Mercado Pago preference.
+- API Gateway returns `checkoutUrl`.
+- The frontend redirects the customer to the Mercado Pago payment UI.
+- The order is synchronized from the return URL using `payment_id` when Mercado Pago sends it, or by searching Mercado Pago with `external_reference=orderId` when it does not. The webhook is also configured when Mercado Pago accepts the public HTTP endpoint.
+
+The pending production work is:
+
+- Configure a real domain.
+- Create an ACM certificate.
+- Set `certificate_arn`, `frontend_base_url` and `api_gateway_base_url`.
+- Disable HTTP demo mode or leave it unset so Terraform resolves it to `false` when HTTPS is available and `auto_return` can be used safely.
 
 ## Image Build And Push
 
@@ -184,7 +209,19 @@ make deploy-migrate
 
 `make deploy-migrate` runs one Fargate task per Prisma-backed service using the service task definition and its own database secret. It must run after `make deploy-images`, because the task images need the Prisma CLI and each service `prisma` directory.
 
-Catalog seed data is not run by Terraform. Run it as a separate controlled one-off task when you intentionally want to load or refresh demo data.
+`make deploy` automatically runs migrations and catalog seed only for the first deploy of the current RDS DB instance. The marker is stored in AWS Systems Manager Parameter Store and is tied to the RDS `DbiResourceId`, so updating ECR images or ECS task definitions does not rerun migrations or seed. If you destroy and recreate RDS, the resource id changes and `make deploy` bootstraps the new database automatically.
+
+Catalog seed data is not run by Terraform directly. To intentionally reload or refresh demo products after the first database bootstrap, run:
+
+```bash
+make deploy-seed
+```
+
+If you add a new Prisma migration after the database was already bootstrapped, run:
+
+```bash
+make deploy-migrate
+```
 
 ## Optional Resources
 
