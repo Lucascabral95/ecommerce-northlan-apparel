@@ -364,3 +364,58 @@ RabbitMQ is available locally as infrastructure and is used by the auth/user/cat
 With `PAYMENT_PROVIDER=MOCK`, Payment Service approves or rejects the payment immediately and publishes `payment.event.payment_succeeded` or `payment.event.payment_failed`. With `PAYMENT_PROVIDER=MERCADO_PAGO`, Payment Service creates a Checkout Pro preference, stores `preferenceId`, `initPoint`, `sandboxInitPoint` and `externalReference`, then returns `checkoutUrl` to the frontend. The browser redirect is not trusted as payment proof; Mercado Pago webhooks enter through API Gateway and Payment Service consults the provider before publishing final payment events.
 
 Success moves the order to `PAID` and `CONFIRMED`, publishes `inventory.command.confirm_stock`, clears the cart through `cart.command.clear_cart` and emits `order.event.order_confirmed`. Failure, cancellation or expiration moves the order to a failed/cancelled path, publishes `inventory.command.release_stock` and emits `order.event.order_cancelled`.
+
+## Mercado Pago Test Flow
+
+Use this only for development and test environments configured with `PAYMENT_PROVIDER=MERCADO_PAGO`.
+
+### Test login
+
+- Mercado Pago user: `TESTUSER1220788472`
+- Mercado Pago password: `1afnsm5AAE`
+
+### Test card
+
+- Payment path: `Choose another payment method` -> `New card (credit, debit or prepaid)`
+- Card number: `5031 7557 3453 0604`
+- Expiration date: `11/30`
+- Security code: `123`
+- Cardholder name: `APRO`
+- DNI: `12345678`
+
+### End-to-end test steps
+
+1. Sign in to the e-commerce app.
+2. Add products to the cart.
+3. Go to checkout and complete the shipping information.
+4. Continue to Mercado Pago and sign in with the test account.
+5. Enter the test card data.
+6. Confirm the transaction and verify the payment and order status.
+
+### Expected result
+
+- Payment status: approved
+- Webhook result: automatic payment confirmation when the environment supports the full webhook flow
+- Inventory result: purchased stock is discounted automatically
+- Order result: the order changes to `PAID` and stock remains reserved for up to 10 minutes while the customer completes payment
+
+### Alternative cardholder names
+
+| Cardholder name | Result | Description |
+| --------------- | ------ | ----------- |
+| `APRO` | Approved | Payment approved successfully |
+| `CONT` | Pending | Payment remains pending |
+| `OTHE` | Rejected | Rejected by a general error |
+| `CALL` | Validation | Rejected and requires authorization |
+| `FUND` | Funds | Rejected due to insufficient funds |
+| `SECU` | Security | Rejected by security code validation |
+| `EXPI` | Expired | Rejected by expiration date validation |
+| `FORM` | Form | Rejected by form validation |
+
+### Important notes
+
+- These credentials and card details are for test environments only.
+- In production, Mercado Pago processes real payments with valid customer accounts and cards.
+- Keep the Mercado Pago test session active during the full checkout flow.
+- Verify webhook processing in the backend before assuming an order is confirmed.
+- Check email notifications and real-time order synchronization as part of the test.

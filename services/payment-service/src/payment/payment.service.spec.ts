@@ -83,6 +83,7 @@ describe('PaymentService', () => {
     const secondPayment = await service.processPayment(BASE_PAYMENT, testContext());
 
     expect(secondPayment.id).toBe(firstPayment.id);
+    expect(prisma.advisoryLocks).toEqual(['payment:order-1', 'payment:order-1']);
     expect(prisma.payments).toHaveLength(1);
     expect(prisma.events).toHaveLength(2);
     expect(rabbitMqClient.routingKeys).toHaveLength(1);
@@ -286,6 +287,71 @@ describe('PaymentService', () => {
     });
     expect(rabbitMqClient.routingKeys).toContain('payment.event.payment_succeeded');
   });
+
+  it('synchronizes a Mercado Pago preference by order id when the return URL omits payment id', async () => {
+    config.providerMode = 'MERCADO_PAGO';
+    config.mercadoPagoAccessToken = 'test-access-token';
+    service = new PaymentService(config as never, prisma as never, rabbitMqClient as never);
+    prisma.payments.push({
+      amount: 180,
+      approvedAt: null,
+      cancelledAt: null,
+      checkoutUrl: 'https://mercadopago.test/checkout',
+      createdAt: new Date(),
+      currency: 'ARS',
+      expiredAt: null,
+      expiresAt: null,
+      externalReference: 'order-mp-order-sync',
+      failureReason: null,
+      id: '000000000100-0000-4000-8000-000000000000',
+      idempotencyKey: 'order-mp-order-sync:payment',
+      initPoint: 'https://mercadopago.test/checkout',
+      metadata: null,
+      orderId: 'order-mp-order-sync',
+      provider: 'MERCADO_PAGO',
+      providerPaymentId: null,
+      providerPreferenceId: 'pref-order-sync',
+      rawProviderStatus: 'preference_created',
+      rejectedAt: null,
+      requestHash: 'request-hash',
+      sandboxInitPoint: null,
+      status: 'PENDING',
+      updatedAt: new Date(),
+      userId: 'user-1',
+    });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      json: async () => ({
+        results: [
+          {
+            currency_id: 'ARS',
+            external_reference: 'order-mp-order-sync',
+            id: 789,
+            status: 'approved',
+            transaction_amount: 180,
+          },
+        ],
+      }),
+      ok: true,
+    } as Response);
+
+    const payment = await service.syncPaymentStatus(
+      {
+        orderId: 'order-mp-order-sync',
+        userId: 'user-1',
+      },
+      testContext(),
+    );
+
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/v1/payments/search?');
+    expect(url).toContain('external_reference=order-mp-order-sync');
+    expect(payment).toMatchObject({
+      orderId: 'order-mp-order-sync',
+      providerPaymentId: '789',
+      status: 'APPROVED',
+    });
+    expect(rabbitMqClient.routingKeys).toContain('payment.event.payment_succeeded');
+  });
 });
 
 afterEach(() => {
@@ -302,6 +368,7 @@ function testContext() {
 class FakePaymentConfig {
   readonly apiGatewayBaseUrl = 'http://localhost:4000/api/v1';
   readonly frontendBaseUrl = 'http://localhost:3000';
+  readonly mercadoPagoHttpDemoMode = false;
   readonly mockFailureAmount = 13.37;
   readonly mockForceFailure = false;
   mercadoPagoAccessToken: string | undefined;
@@ -379,6 +446,7 @@ type FakeWebhookEvent = {
 };
 
 class FakePaymentPrisma {
+  readonly advisoryLocks: string[] = [];
   readonly events: FakePaymentEvent[] = [];
   readonly payments: FakePayment[] = [];
   readonly webhookEvents: FakeWebhookEvent[] = [];
@@ -494,6 +562,11 @@ class FakePaymentPrisma {
     callback: (tx: FakePaymentPrisma) => Promise<TValue>,
   ): Promise<TValue> {
     return callback(this);
+  }
+
+  async $executeRaw(_strings: TemplateStringsArray, ...values: unknown[]): Promise<number> {
+    this.advisoryLocks.push(String(values[0]));
+    return 1;
   }
 
   private nextId(): string {

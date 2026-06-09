@@ -90,6 +90,8 @@ export class PaymentService {
     const provider = this.resolveProvider(payload.provider);
     const requestHash = hashPaymentRequest(payload);
     const result = await this.prisma.$transaction<ProcessPaymentResult>(async (tx) => {
+      await lockPaymentOrder(tx, payload.orderId);
+
       const existingPayment = await tx.payment.findFirst({
         where: {
           OR: [{ idempotencyKey: payload.idempotencyKey }, { orderId: payload.orderId }],
@@ -243,15 +245,10 @@ export class PaymentService {
       throw new BadRequestException('Payment was not found.');
     }
 
-    const providerPaymentId = payload.providerPaymentId ?? payment.providerPaymentId;
-    if (!providerPaymentId) {
-      throw new BadRequestException('Payment has no provider payment id to synchronize.');
-    }
-
     const provider = this.resolveProvider(payment.provider as PaymentProvider);
     const providerStatus = await provider.getPaymentStatus({
       orderId: payment.orderId,
-      providerPaymentId,
+      providerPaymentId: payload.providerPaymentId ?? payment.providerPaymentId ?? undefined,
     });
 
     const updatedPayment = await this.applyProviderStatus(providerStatus, undefined, context);
@@ -550,6 +547,10 @@ async function recordPaymentEvent(
       type,
     },
   });
+}
+
+async function lockPaymentOrder(tx: TransactionClient, orderId: string): Promise<void> {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`payment:${orderId}`}))`;
 }
 
 function extractWebhookInput(payload: ProcessPaymentWebhookCommandPayload) {

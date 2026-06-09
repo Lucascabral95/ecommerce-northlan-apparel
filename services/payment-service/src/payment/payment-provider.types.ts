@@ -27,7 +27,7 @@ export type CreatePaymentPreferenceResult = Readonly<{
 
 export type GetPaymentStatusInput = Readonly<{
   orderId?: string;
-  providerPaymentId: string;
+  providerPaymentId?: string;
 }>;
 
 export type ProviderPaymentStatusResult = Readonly<{

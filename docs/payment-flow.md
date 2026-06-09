@@ -46,15 +46,28 @@ Required for Mercado Pago mode:
 | `PAYMENT_PROVIDER` | Use `MERCADO_PAGO`. |
 | `MERCADO_PAGO_ACCESS_TOKEN` | Private access token from Mercado Pago test or production credentials. Do not commit real values. |
 | `MERCADO_PAGO_PUBLIC_KEY` | Public key used by frontend integrations if a future UI flow needs it. Checkout Pro redirect does not require exposing it today. |
-| `MERCADO_PAGO_WEBHOOK_SECRET` | Secret used to validate webhook signatures. Recommended for every shared or public environment. |
-| `MERCADO_PAGO_SUCCESS_URL` | Frontend success return URL, for example `http://localhost:3000/es/payment/success`. |
-| `MERCADO_PAGO_FAILURE_URL` | Frontend failure return URL. |
-| `MERCADO_PAGO_PENDING_URL` | Frontend pending return URL. |
-| `MERCADO_PAGO_NOTIFICATION_URL` | Public API Gateway webhook URL. |
+| `MERCADO_PAGO_WEBHOOK_SECRET` | Secret used to validate webhook signatures. Recommended for every shared or public HTTPS environment. |
+| `MERCADO_PAGO_SUCCESS_URL` | Frontend success return URL. Required for full HTTPS mode; still sent in HTTP demo mode without `auto_return`. |
+| `MERCADO_PAGO_FAILURE_URL` | Frontend failure return URL. Required for full HTTPS mode; still sent in HTTP demo mode without `auto_return`. |
+| `MERCADO_PAGO_PENDING_URL` | Frontend pending return URL. Required for full HTTPS mode; still sent in HTTP demo mode without `auto_return`. |
+| `MERCADO_PAGO_NOTIFICATION_URL` | Public API Gateway webhook URL. Required for full HTTPS mode; still sent in HTTP demo mode when available. |
 | `FRONTEND_BASE_URL` | Frontend base URL used for safe fallbacks. |
 | `API_GATEWAY_BASE_URL` | API Gateway base URL used for safe fallbacks. |
+| `MERCADO_PAGO_HTTP_DEMO_MODE` | When `true`, creates a Checkout Pro preference without `auto_return` while keeping return URLs and webhook URL. Intended only for HTTP ALB demos. |
 
 Local `.env.example` values intentionally contain placeholders only.
+
+## AWS ALB HTTP Demo Mode
+
+An AWS ALB DNS name such as `http://northlane-apparel-dev-alb-...elb.amazonaws.com` can be used as a development checkout flow. Mercado Pago may reject `auto_return` when return URLs are HTTP-only, so Payment Service omits only `auto_return` when `MERCADO_PAGO_HTTP_DEMO_MODE=true`.
+
+In Terraform dev, this mode is enabled automatically when:
+
+- `payment_provider=MERCADO_PAGO`
+- `certificate_arn` is empty
+- `mercado_pago_http_demo_mode` is left as `null`
+
+The frontend still receives `checkoutUrl` and redirects to the Mercado Pago UI. When Mercado Pago returns, the frontend calls `POST /api/v1/payments/sync-status`; Payment Service uses `payment_id`/`collection_id` when present, or searches Mercado Pago by `external_reference=orderId` when the return URL only contains the order. The webhook endpoint is also sent as `notification_url`; use HTTPS with a domain and ACM certificate for the production-grade webhook path.
 
 ## Webhook Security
 

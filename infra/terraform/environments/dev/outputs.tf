@@ -38,6 +38,11 @@ output "rds_endpoint" {
   value       = module.rds.endpoint
 }
 
+output "rds_instance_identifier" {
+  description = "RDS DB instance identifier."
+  value       = module.rds.identifier
+}
+
 output "rds_master_user_secret_arn" {
   description = "AWS-managed RDS master user secret ARN."
   value       = module.rds.master_user_secret_arn
