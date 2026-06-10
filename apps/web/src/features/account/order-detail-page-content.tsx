@@ -4,12 +4,13 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { formatMoney } from '../../shared/format';
 import { ErrorState } from '../../shared/ui/states';
-import { useOrder } from './account-hooks';
+import { useOrder, useSyncPendingPaymentOrders } from './account-hooks';
 import { OrderTimeline } from './order-timeline';
 
 export function OrderDetailPageContent({ id }: Readonly<{ id: string }>) {
   const t = useTranslations('account.orderDetail');
   const order = useOrder(id);
+  useSyncPendingPaymentOrders(order.data?.status === 'PAYMENT_PENDING' ? [order.data.id] : []);
 
   if (order.error) {
     return <ErrorState message={order.error.message} />;

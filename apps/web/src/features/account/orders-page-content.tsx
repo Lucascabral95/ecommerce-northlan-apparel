@@ -4,11 +4,16 @@ import { Link } from '@/i18n/navigation';
 import { useTranslations } from 'next-intl';
 import { formatDate, formatMoney } from '../../shared/format';
 import { EmptyState, ErrorState } from '../../shared/ui/states';
-import { useOrders } from './account-hooks';
+import { useOrders, useSyncPendingPaymentOrders } from './account-hooks';
 
 export function OrdersPageContent() {
   const t = useTranslations('account.ordersPage');
   const orders = useOrders();
+  useSyncPendingPaymentOrders(
+    orders.data
+      ?.filter((order) => order.status === 'PAYMENT_PENDING')
+      .map((order) => order.id),
+  );
 
   return (
     <div>

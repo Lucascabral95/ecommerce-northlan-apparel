@@ -34,6 +34,7 @@ export function useSyncPaymentStatus() {
   return useMutation({
     mutationFn: syncPaymentStatus,
     onSuccess: (payment) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
       void queryClient.invalidateQueries({ queryKey: queryKeys.order(payment.orderId) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.orders });
     },
