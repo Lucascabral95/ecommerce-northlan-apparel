@@ -3,8 +3,10 @@
 import type { OrderStatus } from '@northlane/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import { useEffect, useRef } from 'react';
 import { queryKeys } from '../../shared/api/query-keys';
 import { useToastStore } from '../../shared/ui/toast';
+import { syncPaymentStatus } from '../checkout/checkout-api';
 import {
   createAddress,
   getOrder,
@@ -21,6 +23,7 @@ const TERMINAL_ORDER_STATUSES = new Set<OrderStatus>([
   'FAILED',
   'REFUNDED',
 ]);
+const PENDING_PAYMENT_SYNC_RETRY_MS = 15_000;
 
 export function useProfile() {
   return useQuery({
@@ -40,6 +43,10 @@ export function useOrders() {
   return useQuery({
     queryFn: listOrders,
     queryKey: queryKeys.orders,
+    refetchInterval: (query) => {
+      const orders = query.state.data;
+      return orders?.some((order) => !TERMINAL_ORDER_STATUSES.has(order.status)) ? 2_000 : false;
+    },
   });
 }
 
@@ -53,6 +60,43 @@ export function useOrder(id: string) {
       return status && TERMINAL_ORDER_STATUSES.has(status) ? false : 2_000;
     },
   });
+}
+
+export function useSyncPendingPaymentOrders(orderIds: readonly string[] | undefined) {
+  const queryClient = useQueryClient();
+  const syncAttempts = useRef(new Map<string, number>());
+
+  useEffect(() => {
+    const now = Date.now();
+    const pendingOrderIds = [...new Set(orderIds ?? [])].filter(
+      (orderId) => {
+        const lastAttemptAt = syncAttempts.current.get(orderId);
+        return (
+          orderId.length > 0 &&
+          (!lastAttemptAt || now - lastAttemptAt >= PENDING_PAYMENT_SYNC_RETRY_MS)
+        );
+      },
+    );
+    if (pendingOrderIds.length === 0) {
+      return;
+    }
+
+    for (const orderId of pendingOrderIds) {
+      syncAttempts.current.set(orderId, now);
+      void syncPaymentStatus({ orderId })
+        .then((payment) => {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.order(payment.orderId) });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.orders });
+          window.setTimeout(() => {
+            void queryClient.invalidateQueries({ queryKey: queryKeys.cart });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.order(payment.orderId) });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.orders });
+          }, 2_500);
+        })
+        .catch(() => undefined);
+    }
+  }, [orderIds, queryClient]);
 }
 
 export function useUpdateProfile() {

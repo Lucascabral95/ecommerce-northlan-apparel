@@ -24,11 +24,11 @@ export function PaymentReturnPageContent({
   const syncedReturnKey = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    if (!orderId || !providerPaymentId) {
+    if (!orderId) {
       return;
     }
 
-    const returnKey = `${orderId}:${providerPaymentId}`;
+    const returnKey = `${orderId}:${providerPaymentId ?? 'lookup-by-order'}`;
     if (syncedReturnKey.current === returnKey) {
       return;
     }

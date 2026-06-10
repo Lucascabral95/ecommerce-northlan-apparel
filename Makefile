@@ -150,7 +150,7 @@ deploy-stop:
 destroy:
 	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/invoke-terraform.ps1 -TerraformDir "$(TF_DIR)" init
 	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/remove-ecr-from-terraform-state.ps1 -TerraformDir "$(TF_DIR)"
-	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/invoke-terraform.ps1 -TerraformDir "$(TF_DIR)" destroy
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/invoke-terraform.ps1 -TerraformDir "$(TF_DIR)" destroy -auto-approve $(TF_DEPLOY_VARS) -var="ecs_desired_count=0"
 # Destruir con esto 
 # cd infra/terraform/environments/dev
 # terraform destroy
