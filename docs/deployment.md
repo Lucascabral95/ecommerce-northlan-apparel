@@ -237,4 +237,25 @@ make deploy-migrate
 make destroy
 ```
 
-This targets Terraform only and does not touch local Docker Compose development resources. For shared environments, enable `rds_deletion_protection = true` and avoid using the dev destroy target.
+This target is intentionally scoped to Terraform-managed dev infrastructure and runs with `ecs_desired_count=0`.
+
+Before Terraform destroy runs, the Makefile removes ECR repositories from Terraform state. This avoids Terraform deleting pushed images every time you tear down the dev environment. If you want to delete ECR repositories and images too, do it explicitly from AWS after confirming no deployment depends on them.
+
+`make destroy` does not remove:
+
+- local Docker Compose containers, volumes or images
+- local PostgreSQL/RabbitMQ/Redis data
+- ECR repositories removed from Terraform state
+- ECR images already pushed
+- CloudWatch log groups or retained log history when AWS keeps them outside the active Terraform delete path
+- local marker files such as `.aws-deploy-image-tag` or `.aws-rabbitmq-password`
+
+For shared environments, enable `rds_deletion_protection = true` and avoid using the dev destroy target.
+
+If Terraform state becomes locked or stale on Windows, close other Terraform processes first and then run:
+
+```bash
+make deploy-plan
+```
+
+Use direct Terraform commands only when you intentionally want to bypass the Makefile safeguards.

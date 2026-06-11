@@ -1,4 +1,4 @@
-.PHONY: install dev images infra-up bootstrap up start down logs observability-logs build lint test test-e2e test-e2e-live deploy deploy-infra deploy-reconcile deploy-preflight deploy-secrets deploy-images deploy-bootstrap-if-needed deploy-migrate deploy-seed deploy-services ensure-deploy-image-tag deploy-plan deploy-status deploy-stop destroy clean
+.PHONY: install doctor local-check dev images infra-up bootstrap up start down logs observability-logs build lint test test-e2e test-e2e-live deploy deploy-infra deploy-reconcile deploy-preflight deploy-secrets deploy-images deploy-bootstrap-if-needed deploy-migrate deploy-seed deploy-services ensure-deploy-image-tag deploy-plan deploy-status deploy-stop destroy clean
 
 ifneq (,$(wildcard .env))
 include .env
@@ -42,6 +42,11 @@ export COMPOSE_BAKE COMPOSE_PARALLEL_LIMIT PAYMENT_PROVIDER PAYMENT_PROVIDER_MOD
 
 install:
 	npm install
+
+doctor: local-check
+
+local-check:
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/doctor.ps1
 
 dev:
 	cd apps/web && npm run dev
@@ -148,6 +153,8 @@ deploy-stop:
 # destroy:
 # 	terraform -chdir=$(TF_DIR) destroy
 destroy:
+	@echo Destroying Terraform-managed dev infrastructure. ECR repositories are intentionally removed from Terraform state first so pushed images can be reused.
+	@echo Local Docker volumes, local databases, local images, AWS ECR images, and existing CloudWatch log history may remain outside this destroy operation.
 	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/invoke-terraform.ps1 -TerraformDir "$(TF_DIR)" init
 	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/remove-ecr-from-terraform-state.ps1 -TerraformDir "$(TF_DIR)"
 	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/aws/invoke-terraform.ps1 -TerraformDir "$(TF_DIR)" destroy -auto-approve $(TF_DEPLOY_VARS) -var="ecs_desired_count=0"

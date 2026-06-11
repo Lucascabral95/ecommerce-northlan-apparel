@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet('up', 'start', 'bootstrap', 'down', 'logs', 'observability-logs', 'lint', 'test', 'build', 'typecheck')]
+  [ValidateSet('up', 'start', 'bootstrap', 'down', 'logs', 'observability-logs', 'lint', 'test', 'build', 'typecheck', 'doctor', 'local-check')]
   [string]$Action
 )
 
@@ -61,6 +61,12 @@ try {
     }
     'typecheck' {
       Invoke-Step -Label 'npm run typecheck' -Executable 'npm.cmd' -Arguments @('run', 'typecheck')
+    }
+    'doctor' {
+      Invoke-Step -Label 'scripts/dev/doctor.ps1' -Executable 'powershell' -Arguments @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', 'scripts/dev/doctor.ps1')
+    }
+    'local-check' {
+      Invoke-Step -Label 'scripts/dev/doctor.ps1' -Executable 'powershell' -Arguments @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', 'scripts/dev/doctor.ps1')
     }
   }
 }

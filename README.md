@@ -1,42 +1,19 @@
 # Northlane Apparel
 
-Northlane Apparel is the foundation for a professional event-driven apparel e-commerce platform. The repository is currently in **Phase 17**: it includes the monorepo foundation, local infrastructure, API Gateway, RabbitMQ-backed domain services, checkout saga wiring, customer and admin frontends, critical automated tests, a GitHub Actions CI workflow, a live browser E2E harness against Docker-backed infrastructure, and documented AWS infrastructure for ECS Fargate.
+Northlane Apparel is an event-driven apparel e-commerce platform built as a production-oriented monorepo. It includes a localized Next.js storefront, a NestJS API Gateway, service-owned PostgreSQL schemas, RabbitMQ-based service communication, a checkout saga, Mercado Pago Checkout Pro support, local observability and a documented AWS ECS Fargate deployment path.
 
-## Current Scope
+## Stack
 
-Implemented now:
+- npm workspaces and Turborepo
+- Next.js App Router, React, TypeScript and Tailwind CSS
+- TanStack Query, Zustand, React Hook Form and Zod
+- NestJS API Gateway and NestJS microservices
+- RabbitMQ, PostgreSQL, Prisma and Redis
+- Mercado Pago Checkout Pro plus deterministic MOCK payments
+- Prometheus, Grafana, Loki and Grafana Alloy for local observability
+- Terraform for AWS ECS Fargate, ECR, ALB, RDS, Secrets Manager and optional Amazon MQ/Redis
 
-- npm workspaces.
-- Turborepo as a script orchestrator only.
-- Strict TypeScript base configuration.
-- Next.js storefront with public catalog, product detail, auth, bag, checkout and protected account pages.
-- Next.js admin desk for catalog, stock and order operations guarded by the ADMIN role.
-- NestJS API Gateway base in `apps/api-gateway` with `/api/v1`, health check, typed environment configuration, CORS, Helmet, rate limiting, structured request logs, correlation IDs, validation pipe and consistent error responses.
-- Auth Service with Prisma-owned credentials tables, bcrypt password hashing, JWT access tokens, refresh tokens and RabbitMQ request/reply handlers.
-- User Service with Prisma-owned profiles and addresses, plus `UserRegisteredEvent` consumption to create the initial profile.
-- Catalog Service with Prisma-owned products, variants, images, categories, brands, collections, slugs, SEO fields, filters, search and realistic apparel seed data.
-- Inventory Service with Prisma-owned inventory items, stock reservations, stock movements, row-level locking, reservation expiration, idempotency and stock events.
-- Cart Service with Prisma-owned carts and cart items, product snapshots and catalog validation through RabbitMQ request/reply.
-- Order Service with Prisma-owned orders, order items, status history, checkout idempotency and snapshot-based order history.
-- Payment Service with Prisma-owned payments, payment events, provider strategy, MOCK approval/rejection rules, Mercado Pago Checkout Pro preference creation, webhook idempotency and command idempotency.
-- Notification Service with Prisma-owned notification history, simulated email logs and a RabbitMQ DLQ for failed notification events.
-- Event-driven checkout completion across order, inventory, payment, cart and notification services.
-- Critical automated tests for auth, user profiles, catalog creation, cart, inventory, order idempotency, checkout success/failure, RabbitMQ handlers, API Gateway guards and frontend form validation.
-- Live browser E2E that boots RabbitMQ, PostgreSQL, Redis, all implemented services, API Gateway and the Next.js storefront, then executes a real checkout flow.
-- Eight NestJS service shells under `services/*`.
-- Prisma schema and migrations for implemented services; placeholders remain for future services.
-- Shared and contracts packages.
-- Local Docker Compose infrastructure for RabbitMQ, PostgreSQL and Redis.
-- GitHub Actions CI for lint, typecheck, tests, build, Prisma generation, migration validation and Docker Compose configuration checks.
-- Terraform AWS infrastructure for a dev ECS Fargate deployment with VPC, public/private subnets, one ECR repository per app/service, ALB, HTTPS support, ECS services, RDS PostgreSQL, optional Redis, optional Amazon MQ RabbitMQ, CloudWatch Logs and Secrets Manager.
-- Local observability stack with Prometheus, Grafana, Loki and Grafana Alloy.
-- Root Makefile with initial local commands.
-
-Not implemented yet:
-
-- CD pipeline automation or production deployment hardening.
-
-## Target Architecture
+## Architecture
 
 ```mermaid
 flowchart LR
@@ -50,372 +27,139 @@ flowchart LR
   Broker --> Order[Order Service]
   Broker --> Payment[Payment Service]
   Broker --> Notification[Notification Service]
-  Auth --> AuthDb[(Auth DB)]
-  User --> UserDb[(User DB)]
-  Catalog --> CatalogDb[(Catalog DB)]
-  Inventory --> InventoryDb[(Inventory DB)]
-  Cart --> CartDb[(Cart DB)]
-  Order --> OrderDb[(Order DB)]
-  Payment --> PaymentDb[(Payment DB)]
-  Notification --> NotificationDb[(Notification DB)]
+  Auth --> AuthDb[(Auth schema)]
+  User --> UserDb[(User schema)]
+  Catalog --> CatalogDb[(Catalog schema)]
+  Inventory --> InventoryDb[(Inventory schema)]
+  Cart --> CartDb[(Cart schema)]
+  Order --> OrderDb[(Order schema)]
+  Payment --> PaymentDb[(Payment schema)]
+  Notification --> NotificationDb[(Notification schema)]
 ```
 
-## Repository Layout
+The frontend talks only to API Gateway. Internal service-to-service communication stays on RabbitMQ. Each service owns its data model and Prisma migrations.
+
+## Repository Map
 
 ```text
 apps/
-  web/
-  api-gateway/
+  api-gateway/        Public HTTP boundary, Swagger docs and frontend-facing APIs
+  web/                Localized customer storefront and account/admin UI
 services/
-  auth-service/
-  user-service/
-  catalog-service/
-  inventory-service/
-  cart-service/
-  order-service/
-  payment-service/
+  auth-service/       Credentials, sessions and roles
+  user-service/       Profiles and addresses
+  catalog-service/    Products, categories, brands, variants and media
+  inventory-service/  Stock items, reservations and movements
+  cart-service/       Active carts and item snapshots
+  order-service/      Checkout saga state and order history
+  payment-service/    MOCK and Mercado Pago payment ownership
   notification-service/
 packages/
-  shared/
-  contracts/
+  contracts/          RabbitMQ command/event contracts
+  shared/             Shared config, logging, metrics and messaging utilities
 infra/
-  docker/
-  terraform/
-    environments/dev/
-    modules/
-docs/
+  docker/             Prometheus, Grafana, Loki and Alloy config
+  terraform/          AWS dev infrastructure
+docs/                 Operational and architecture documentation
 ```
 
-## Commands
+## Quick Start
 
-```bash
-make install
-make dev
-make images
-make infra-up
-make bootstrap
-make up
-make start
-make down
-make logs
-make build
-make lint
-make test
-make test-e2e
-make test-e2e-live
-make deploy
-make deploy-plan
-make deploy-images
-make destroy
-make clean
-```
-
-If Windows blocks `make.exe` through App Control or PowerShell policy, use the native PowerShell wrapper instead:
+Create local configuration, run the project doctor, then start the full Docker stack:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 up
-powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 down
-powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 logs
-powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 observability-logs
-powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 lint
-powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 test
-powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 build
-powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 typecheck
-```
-
-`make up` now builds and starts the full local platform through Docker Compose:
-
-- RabbitMQ
-- PostgreSQL
-- Redis
-- Auth, User, Catalog, Inventory, Cart, Order, Payment and Notification services
-- API Gateway
-- Next.js storefront
-
-`make up` is the safe full-stack command. It builds the shared backend and web images, prepares the Docker database through bootstrap, then starts the application containers:
-
-```bash
+Copy-Item .env.example .env
+make doctor
 make up
 ```
 
-`make bootstrap` remains available when you only need Prisma migrations, catalog seed and inventory synchronization. For faster restarts after the Docker volumes are already prepared, use:
+If Windows App Control blocks `make.exe`, use the PowerShell wrapper:
 
-```bash
-make start
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 doctor
+powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 up
 ```
 
-Equivalent npm commands:
+Local URLs:
+
+| Service | URL |
+| ------- | --- |
+| Storefront | `http://localhost:3000` |
+| API Gateway | `http://localhost:4000/api/v1/health` |
+| Swagger | `http://localhost:4000/api/docs` |
+| RabbitMQ UI | `http://localhost:15672` |
+| Prometheus | `http://localhost:9090` |
+| Grafana | `http://localhost:3001` |
+
+## Common Commands
 
 ```bash
-npm install
-npm run dev
-npm run build
-npm run lint
-npm run prisma:generate
-npm run prisma:migrate:all
-npm test
-npm run test:e2e
-npm run test:e2e:live
-npm run typecheck
-npm run clean
+make doctor          # Validate local tools, .env, payment mode and docker compose config
+make up              # Build, bootstrap and start the full local stack
+make start           # Start an already bootstrapped local stack
+make down            # Stop local containers
+make logs            # Follow local logs
+make lint            # Run lint
+make test            # Run deterministic tests
+make test-e2e        # Run checkout saga smoke tests
+make build           # Build the monorepo
+make deploy-plan     # Review AWS Terraform changes
+make deploy          # Deploy/update AWS dev infrastructure, images, secrets and ECS services
+make deploy-status   # Show ECS service status
+make destroy         # Destroy Terraform-managed dev infrastructure
 ```
 
-AWS Terraform commands:
+`make destroy` is intentionally scoped to Terraform-managed dev infrastructure. It does not remove local Docker resources, and the deploy flow removes ECR repositories from Terraform state before destroy so pushed images can be reused unless you delete them manually.
+
+## Documentation
+
+Use the dedicated docs instead of expanding this README:
+
+- [Local development](docs/local-development.md): Docker Compose, ports, bootstrap and live E2E.
+- [Event-driven flow](docs/event-driven-flow.md): RabbitMQ contracts, retries, DLQ and saga flow.
+- [Payment flow](docs/payment-flow.md): MOCK payments, Mercado Pago Checkout Pro, webhooks and test cards.
+- [AWS architecture](docs/aws-architecture.md): ECS Fargate target design, ALB HTTPS and cost notes.
+- [Deployment](docs/deployment.md): Terraform, ECR, ECS, RDS, secrets, migrations and destroy behavior.
+- [Internationalization](docs/i18n.md): Spanish/English routing and translation structure.
+- [Observability](docs/observability.md): Prometheus, Grafana, Loki and Alloy.
+- [Testing and CI](docs/testing-and-ci.md): local quality gates and GitHub Actions coverage.
+
+## Payment Modes
+
+`PAYMENT_PROVIDER=MOCK` is the default for local deterministic development. It approves payments unless a test scenario requests failure.
+
+`PAYMENT_PROVIDER=MERCADO_PAGO` creates a real Checkout Pro preference and returns a `checkoutUrl` to the frontend. Over a plain HTTP AWS ALB, the project uses demo mode to open Mercado Pago UI while final confirmation still depends on return synchronization and webhook availability. The full production-grade flow requires a domain, HTTPS on ALB through ACM, and a public webhook URL.
+
+## Quality Gates
+
+Before opening or updating a pull request, run:
 
 ```bash
-cd infra/terraform/environments/dev
-cp terraform.tfvars.example terraform.tfvars
-terraform init
-terraform plan
-terraform apply
-```
-
-`make deploy` targets only `infra/terraform/environments/dev`; it initializes Terraform, creates/updates ECR and ALB first, builds and pushes one image per app/service to ECR, then applies Terraform with a fresh image tag so ECS task definitions are updated. `make destroy` destroys the Terraform dev environment and does not affect local Docker Compose resources.
-
-## Testing
-
-The default suite is deterministic and does not require PostgreSQL, RabbitMQ or Docker. It exercises
-business behavior using Vitest, in-memory Prisma doubles and captured RabbitMQ subscriptions where a
-real broker would make fast feedback flaky.
-
-```bash
-make test
-npm test
-```
-
-Coverage is concentrated on:
-
-- Auth register/login sessions.
-- User profile updates and frontend auth/address form validation.
-- Catalog product creation with categories, variants and media.
-- Cart item add/update/remove behavior and product snapshots.
-- Inventory reserve/confirm/release stock behavior, stock failure events and command handler retry/DLQ configuration.
-- Order snapshots, checkout idempotency and checkout success/failure saga behavior.
-- RabbitMQ auth/inventory message handlers and API Gateway JWT/admin guards.
-
-The deterministic checkout smoke harness is exposed separately:
-
-```bash
-npm run test:e2e
-make test-e2e
-```
-
-That target runs the order-service checkout success and payment failure scenarios through the
-service-level saga harness with controlled cart and RabbitMQ doubles. A future Docker-backed job can
-coexist with the fast local suite without making day-to-day feedback slow or flaky.
-
-The live browser harness is exposed independently:
-
-```bash
-npm run test:e2e:live
-make test-e2e-live
-```
-
-That command:
-
-- boots `postgres`, `rabbitmq` and `redis` through Docker Compose under the isolated `northlane-e2e` project
-- resets the service-owned Prisma schemas inside an isolated E2E database
-- seeds the real catalog
-- bootstraps authoritative inventory items from the seeded catalog variants
-- starts every implemented backend service plus API Gateway and the Next.js storefront
-- drives a browser through register, catalog navigation, add-to-bag, checkout, order confirmation and history verification
-
-Artifacts and process logs are written to `tmp/e2e-live`. The default browser channel is `msedge` to avoid downloading Chromium on Windows. If Edge is unavailable, install a Playwright browser manually and override `PLAYWRIGHT_BROWSER_CHANNEL`.
-
-## CI
-
-GitHub Actions validates the monorepo through `.github/workflows/ci.yml` on pull requests to `main`, pushes to `main` and manual dispatches.
-
-The pipeline checks:
-
-- dependency installation with `npm ci`
-- Prisma client generation across implemented services
-- lint and typecheck across apps, services and shared packages
-- unit and service tests through `npm test`
-- checkout saga smoke coverage through `npm run test:e2e`
-- full monorepo build through `npm run build`
-- Docker Compose configuration validity
-
-Local parity commands:
-
-```bash
+make doctor
 npm run prisma:generate
 npm run lint
 npm run typecheck
 npm test
+npm run test:e2e
 npm run build
 docker compose config --quiet
 ```
 
-For database-backed CI parity, start PostgreSQL locally and apply the service migrations:
+GitHub Actions runs the same core checks on pull requests to `main`.
 
-```bash
-make infra-up
-npm run prisma:migrate:all
-npm run test:e2e
-make down
-```
+## Scope
 
-## Local Infrastructure
+Implemented:
 
-`make up` builds one shared backend image, a standalone web image, bootstraps the Docker database and starts the complete Docker-based local platform. `make start` skips bootstrap for prepared volumes. `make dev` remains available if you want to run the monorepo directly on the host with Turbo.
+- Customer storefront, account pages, admin screens and i18n-ready localized routes.
+- API Gateway with validation, security middleware, correlation IDs, structured logs and Swagger.
+- Service-owned databases and RabbitMQ command/event contracts.
+- Checkout saga across cart, order, inventory, payment and notification services.
+- Mercado Pago Checkout Pro integration with MOCK fallback.
+- Local observability stack and AWS dev infrastructure documentation.
 
-| Component              | Local URL / Port                      | Default credentials     |
-| ---------------------- | ------------------------------------- | ----------------------- |
-| Web storefront         | `http://localhost:3000`               | none                    |
-| API Gateway            | `http://localhost:4000/api/v1/health` | none                    |
-| Auth Service           | `http://localhost:4101/health`        | none                    |
-| User Service           | `http://localhost:4102/health`        | none                    |
-| Catalog Service        | `http://localhost:4103/health`        | none                    |
-| Inventory Service      | `http://localhost:4104/health`        | none                    |
-| Cart Service           | `http://localhost:4105/health`        | none                    |
-| Order Service          | `http://localhost:4106/health`        | none                    |
-| Payment Service        | `http://localhost:4107/health`        | none                    |
-| Notification Service   | `http://localhost:4108/health`        | none                    |
-| RabbitMQ AMQP          | `localhost:5672`                      | `northlane / northlane` |
-| RabbitMQ Management UI | `http://localhost:15672`              | `northlane / northlane` |
-| RabbitMQ Metrics       | `http://localhost:15692/metrics`      | none                    |
-| PostgreSQL             | `localhost:5432`                      | `northlane / northlane` |
-| Redis                  | `localhost:6379`                      | none                    |
-| Prometheus             | `http://localhost:9090`               | none                    |
-| Grafana                | `http://localhost:3001`               | `admin / admin`         |
-| Loki                   | `http://localhost:3100/ready`         | none                    |
+Deferred:
 
-Use `make logs` to follow container logs and `make down` to stop the stack. Persistent data is stored in named Docker volumes.
-
-Observability details, dashboard panels and Loki queries are documented in [docs/observability.md](docs/observability.md).
-
-## API Gateway
-
-The public HTTP boundary is available under `/api/v1`.
-
-| Endpoint                                 | Purpose                                                                                                                                      |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/v1/health`                     | Health check for local and future container probes.                                                                                          |
-| `POST /api/v1/auth/register`             | Register a user through Auth Service request/reply.                                                                                          |
-| `POST /api/v1/auth/login`                | Login and issue access/refresh tokens.                                                                                                       |
-| `POST /api/v1/auth/refresh`              | Rotate refresh token and issue a new access token.                                                                                           |
-| `GET /api/v1/me`                         | Get the authenticated user's profile.                                                                                                        |
-| `PATCH /api/v1/me/profile`               | Update personal profile data.                                                                                                                |
-| `GET /api/v1/me/addresses`               | List authenticated user's addresses.                                                                                                         |
-| `POST /api/v1/me/addresses`              | Create an address for the authenticated user.                                                                                                |
-| `GET /api/v1/products`                   | List active products with search, filters and sorting.                                                                                       |
-| `GET /api/v1/products/:slug`             | Get active product detail by slug.                                                                                                           |
-| `GET /api/v1/categories`                 | List active catalog categories.                                                                                                              |
-| `GET /api/v1/admin/products`             | List all products, including inactive products. Requires ADMIN JWT.                                                                          |
-| `POST /api/v1/admin/products`            | Create a product through Catalog Service. Requires ADMIN JWT.                                                                                |
-| `PATCH /api/v1/admin/products/:id`       | Update product merchandising fields. Requires ADMIN JWT.                                                                                     |
-| `PATCH /api/v1/admin/products/:id/stock` | Adjust stock for a product variant through Inventory Service. Requires ADMIN JWT.                                                            |
-| `GET /api/v1/cart`                       | Get the authenticated user's active cart.                                                                                                    |
-| `POST /api/v1/cart/items`                | Add an item to the authenticated user's cart.                                                                                                |
-| `PATCH /api/v1/cart/items/:itemId`       | Update cart item quantity.                                                                                                                   |
-| `DELETE /api/v1/cart/items/:itemId`      | Remove a cart item.                                                                                                                          |
-| `DELETE /api/v1/cart`                    | Clear the active cart.                                                                                                                       |
-| `POST /api/v1/checkout`                  | Create an idempotent checkout session from the authenticated user's active cart. In MOCK mode it completes through the internal saga; in Mercado Pago mode it returns a `checkoutUrl` for Checkout Pro redirection. Requires `Idempotency-Key` header or `idempotencyKey` body field. |
-| `POST /api/v1/payments/mercado-pago/webhook` | Public Mercado Pago webhook entrypoint. API Gateway delegates processing to Payment Service through RabbitMQ. |
-| `GET /api/v1/orders`                     | List the authenticated user's order history.                                                                                                 |
-| `GET /api/v1/orders/:id`                 | Get an authenticated user's order detail with item snapshots and status history.                                                             |
-| `GET /api/v1/admin/orders`               | List all orders. Requires ADMIN JWT.                                                                                                         |
-| `PATCH /api/v1/admin/orders/:id/status`  | Change an order status and append status history. Requires ADMIN JWT.                                                                        |
-
-Every HTTP response includes or propagates `x-correlation-id`. Request logs are emitted as JSON and include the same correlation ID. Unhandled and HTTP errors use a consistent envelope with `success`, `statusCode`, `error`, `correlationId`, `path`, `method` and `timestamp`.
-
-## Web Storefront
-
-`apps/web` calls only API Gateway via `NEXT_PUBLIC_API_GATEWAY_URL`. It uses TanStack Query for Gateway server state, Zustand for session and UI-only bag/toast state, and React Hook Form with Zod for auth, profile and address validation. Public product pages include dynamic product metadata, image optimization and clean slug routes.
-
-## Service Boundary Intent
-
-- `apps/web`: customer storefront and account frontend.
-- `apps/api-gateway`: future public HTTP boundary for the frontend.
-- `auth-service`: credentials, tokens and roles.
-- `user-service`: profiles, addresses and contact data.
-- `catalog-service`: products, categories, variants and merchandising data.
-- `inventory-service`: stock ownership and reservations.
-- `cart-service`: user carts and cart item snapshots.
-- `order-service`: checkout saga state and order history.
-- `payment-service`: payment provider ownership, MOCK payments, Mercado Pago Checkout Pro preferences, webhook processing and payment event history.
-- `notification-service`: email and notification history.
-
-## Development Notes
-
-Each service has its own `prisma/schema.prisma` file and isolated PostgreSQL schema. Domain models and migrations are added only when a service reaches its implementation phase.
-
-Implemented service migrations can be applied independently:
-
-```bash
-npm run prisma:migrate --workspace @northlane/auth-service
-npm run prisma:migrate --workspace @northlane/user-service
-npm run prisma:migrate --workspace @northlane/catalog-service
-npm run prisma:migrate --workspace @northlane/inventory-service
-npm run prisma:migrate --workspace @northlane/cart-service
-npm run prisma:migrate --workspace @northlane/order-service
-npm run prisma:migrate --workspace @northlane/payment-service
-npm run prisma:migrate --workspace @northlane/notification-service
-npm run seed --workspace @northlane/catalog-service
-```
-
-RabbitMQ is available locally as infrastructure and is used by the auth/user/catalog/inventory/cart/order/payment/notification request-reply flow plus implemented domain events. Notification Service consumes user, order and payment events, persists notification history and simulates email delivery with JSON logs. Failed notification event handling is routed to `notification.events.dlq`.
-
-## Checkout Saga
-
-`POST /api/v1/checkout` publishes `order.command.create_checkout_session`. Order Service creates the `PENDING` order idempotently, reserves stock, moves the order through `STOCK_RESERVED` and `PAYMENT_PENDING`, then requests payment through `payment.command.request_payment`.
-
-With `PAYMENT_PROVIDER=MOCK`, Payment Service approves or rejects the payment immediately and publishes `payment.event.payment_succeeded` or `payment.event.payment_failed`. With `PAYMENT_PROVIDER=MERCADO_PAGO`, Payment Service creates a Checkout Pro preference, stores `preferenceId`, `initPoint`, `sandboxInitPoint` and `externalReference`, then returns `checkoutUrl` to the frontend. The browser redirect is not trusted as payment proof; Mercado Pago webhooks enter through API Gateway and Payment Service consults the provider before publishing final payment events.
-
-Success moves the order to `PAID` and `CONFIRMED`, publishes `inventory.command.confirm_stock`, clears the cart through `cart.command.clear_cart` and emits `order.event.order_confirmed`. Failure, cancellation or expiration moves the order to a failed/cancelled path, publishes `inventory.command.release_stock` and emits `order.event.order_cancelled`.
-
-## Mercado Pago Test Flow
-
-Use this only for development and test environments configured with `PAYMENT_PROVIDER=MERCADO_PAGO`.
-
-### Test login
-
-- Mercado Pago user: `TESTUSER1220788472`
-- Mercado Pago password: `1afnsm5AAE`
-
-### Test card
-
-- Payment path: `Choose another payment method` -> `New card (credit, debit or prepaid)`
-- Card number: `5031 7557 3453 0604`
-- Expiration date: `11/30`
-- Security code: `123`
-- Cardholder name: `APRO`
-- DNI: `12345678`
-
-### End-to-end test steps
-
-1. Sign in to the e-commerce app.
-2. Add products to the cart.
-3. Go to checkout and complete the shipping information.
-4. Continue to Mercado Pago and sign in with the test account.
-5. Enter the test card data.
-6. Confirm the transaction and verify the payment and order status.
-
-### Expected result
-
-- Payment status: approved
-- Webhook result: automatic payment confirmation when the environment supports the full webhook flow
-- Inventory result: purchased stock is discounted automatically
-- Order result: the order changes to `PAID` and stock remains reserved for up to 10 minutes while the customer completes payment
-
-### Alternative cardholder names
-
-| Cardholder name | Result | Description |
-| --------------- | ------ | ----------- |
-| `APRO` | Approved | Payment approved successfully |
-| `CONT` | Pending | Payment remains pending |
-| `OTHE` | Rejected | Rejected by a general error |
-| `CALL` | Validation | Rejected and requires authorization |
-| `FUND` | Funds | Rejected due to insufficient funds |
-| `SECU` | Security | Rejected by security code validation |
-| `EXPI` | Expired | Rejected by expiration date validation |
-| `FORM` | Form | Rejected by form validation |
-
-### Important notes
-
-- These credentials and card details are for test environments only.
-- In production, Mercado Pago processes real payments with valid customer accounts and cards.
-- Keep the Mercado Pago test session active during the full checkout flow.
-- Verify webhook processing in the backend before assuming an order is confirmed.
-- Check email notifications and real-time order synchronization as part of the test.
+- Production CI/CD automation.
+- Production domain, ACM certificate and hardened HTTPS deployment.
+- Real email provider integration.
