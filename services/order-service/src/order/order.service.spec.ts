@@ -164,6 +164,35 @@ describe('OrderService', () => {
     expect(countRequestedRoutingKey(rabbitMqClient, ROUTING_KEYS.paymentCommandRequestPayment)).toBe(1);
   });
 
+  it('returns a payment-ready checkout session for Mercado Pago without confirming the order', async () => {
+    service = new OrderService(
+      cartClient as never,
+      { paymentProvider: 'MERCADO_PAGO' } as never,
+      prisma as never,
+      rabbitMqClient as never,
+    );
+
+    const session = await service.createCheckoutSession(
+      {
+        idempotencyKey: 'checkout-session-mercado-pago',
+        userId: USER_ID,
+      },
+      testContext(),
+    );
+
+    expect(session.status).toBe('PAYMENT_READY');
+    expect(session.checkoutUrl).toBe(
+      `https://mercadopago.test/checkout/${session.order.id}`,
+    );
+    expect(session.paymentProvider).toBe('MERCADO_PAGO');
+    expect(session.payment?.status).toBe('PENDING');
+    expect(session.order.status).toBe('PAYMENT_PENDING');
+    expect(countRequestedRoutingKey(rabbitMqClient, ROUTING_KEYS.inventoryCommandReserveStock)).toBe(1);
+    expect(countRequestedRoutingKey(rabbitMqClient, ROUTING_KEYS.paymentCommandRequestPayment)).toBe(1);
+    expect(countRoutingKey(rabbitMqClient, ROUTING_KEYS.inventoryCommandConfirmStock)).toBe(0);
+    expect(countRoutingKey(rabbitMqClient, ROUTING_KEYS.cartCommandClearCart)).toBe(0);
+  });
+
   it('cancels the checkout session and releases stock when payment session creation fails', async () => {
     rabbitMqClient.failPaymentRequestsWith = new Error('Mercado Pago preference creation failed.');
 
@@ -413,21 +442,27 @@ class FakeRabbitMqClient {
         currency: string;
         idempotencyKey: string;
         orderId: string;
-        provider: 'MOCK';
+        provider: 'MERCADO_PAGO' | 'MOCK';
         userId: string;
       };
 
       return {
         amount: payload.amount,
-        checkoutUrl: null,
+        checkoutUrl:
+          payload.provider === 'MERCADO_PAGO'
+            ? `https://mercadopago.test/checkout/${payload.orderId}`
+            : null,
         createdAt: new Date().toISOString(),
         currency: payload.currency,
         id: `payment-${payload.orderId}`,
         idempotencyKey: payload.idempotencyKey,
         orderId: payload.orderId,
         provider: payload.provider,
-        providerPaymentId: `mock-${payload.orderId}`,
-        status: 'APPROVED',
+        providerPaymentId:
+          payload.provider === 'MERCADO_PAGO' ? null : `mock-${payload.orderId}`,
+        providerPreferenceId:
+          payload.provider === 'MERCADO_PAGO' ? `preference-${payload.orderId}` : null,
+        status: payload.provider === 'MERCADO_PAGO' ? 'PENDING' : 'APPROVED',
         updatedAt: new Date().toISOString(),
         userId: payload.userId,
       } as TResponse;

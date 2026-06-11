@@ -45,7 +45,8 @@ export function optionalStringEnv(value: string | undefined): string | undefined
 }
 
 export function parseIntegerEnv(name: string, value: string | undefined, options: IntegerEnvOptions = {}): number {
-  if (!value) {
+  const normalizedValue = normalizeTypedEnvValue(value);
+  if (!normalizedValue) {
     if (options.fallback !== undefined) {
       return options.fallback;
     }
@@ -53,7 +54,7 @@ export function parseIntegerEnv(name: string, value: string | undefined, options
     throw new Error(`${name} is required.`);
   }
 
-  const parsedValue = Number(value);
+  const parsedValue = Number(normalizedValue);
   if (!Number.isInteger(parsedValue)) {
     throw new Error(`${name} must be an integer.`);
   }
@@ -70,7 +71,8 @@ export function parseIntegerEnv(name: string, value: string | undefined, options
 }
 
 export function parseBooleanEnv(name: string, value: string | undefined, fallback?: boolean): boolean {
-  if (!value) {
+  const normalizedValue = normalizeTypedEnvValue(value);
+  if (!normalizedValue) {
     if (fallback !== undefined) {
       return fallback;
     }
@@ -78,12 +80,12 @@ export function parseBooleanEnv(name: string, value: string | undefined, fallbac
     throw new Error(`${name} is required.`);
   }
 
-  const normalizedValue = value.trim().toLowerCase();
-  if (['1', 'true', 'yes', 'y'].includes(normalizedValue)) {
+  const normalizedBoolean = normalizedValue.toLowerCase();
+  if (['1', 'true', 'yes', 'y'].includes(normalizedBoolean)) {
     return true;
   }
 
-  if (['0', 'false', 'no', 'n'].includes(normalizedValue)) {
+  if (['0', 'false', 'no', 'n'].includes(normalizedBoolean)) {
     return false;
   }
 
@@ -96,7 +98,8 @@ export function parseEnumEnv<TValue extends string>(
   allowedValues: readonly TValue[],
   fallback?: TValue,
 ): TValue {
-  if (!value) {
+  const normalizedValue = normalizeTypedEnvValue(value);
+  if (!normalizedValue) {
     if (fallback !== undefined) {
       return fallback;
     }
@@ -104,9 +107,13 @@ export function parseEnumEnv<TValue extends string>(
     throw new Error(`${name} is required.`);
   }
 
-  if (allowedValues.includes(value as TValue)) {
-    return value as TValue;
+  if (allowedValues.includes(normalizedValue as TValue)) {
+    return normalizedValue as TValue;
   }
 
   throw new Error(`${name} must be one of: ${allowedValues.join(', ')}.`);
+}
+
+function normalizeTypedEnvValue(value: string | undefined): string | undefined {
+  return value?.replace(/\s+#.*$/, '').trim();
 }

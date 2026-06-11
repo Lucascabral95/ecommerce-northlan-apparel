@@ -9,6 +9,22 @@ This document covers local infrastructure, the implemented service flows and the
 - `make`.
 - Node.js and npm for monorepo commands.
 
+## Project Doctor
+
+Before running the full stack, validate the local workstation:
+
+```powershell
+make doctor
+```
+
+If Windows blocks `make.exe`, use the PowerShell wrapper:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\dev\local-stack.ps1 doctor
+```
+
+The doctor checks `.env`, Node.js, npm, Docker, Docker Compose, Terraform, AWS CLI, payment provider settings and `docker compose config --quiet`. It is intended to fail before a long `make up` or `make deploy` run fails late.
+
 ## Environment
 
 Copy `.env.example` to `.env` if you need to customize ports or credentials.
@@ -65,6 +81,7 @@ Default infrastructure values:
 ## Commands
 
 ```bash
+make doctor
 make images
 make infra-up
 make bootstrap
